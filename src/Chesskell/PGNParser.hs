@@ -42,9 +42,9 @@ data RawMove
     } deriving (Eq, Show, Read)
 
 data RawGame = RawGame
-    { rawTags  :: [RawTag]
-    , rawMoves :: [RawMove]
-    , winner   :: Maybe Color
+    { rawTags   :: [RawTag]
+    , rawMoves  :: [RawMove]
+    , rawWinner :: Maybe Color
     } deriving (Eq, Show, Read)
 
 newtype X = X Char deriving (Eq, Show, Read)
@@ -180,21 +180,21 @@ rawMovesParser = many $
     try (numberParser *> char '.' *> spaces *> rawMoveParser <* spaces)
     <|> rawMoveParser <* spaces
 
-winnerParser :: Parser (Maybe Color)
-winnerParser = 
+rawWinnerParser :: Parser (Maybe Color)
+rawWinnerParser = 
     try (Just <$> (White <$ string "1-0"))
     <|>  Just <$> (Black <$ string "0-1")
     <|>  Nothing <$ string "1/2-1/2"
 
 rawGameParser :: Parser RawGame
 rawGameParser = do
-    rawTags  <- many $ rawTagParser <* spaces
-    rawMoves <- rawMovesParser
-    winner   <- winnerParser
+    rawTags   <- many $ rawTagParser <* spaces
+    rawMoves  <- rawMovesParser
+    rawWinner <- rawWinnerParser
     return RawGame
-        { rawTags  = rawTags
-        , rawMoves = rawMoves 
-        , winner   = winner
+        { rawTags   = rawTags
+        , rawMoves  = rawMoves 
+        , rawWinner = rawWinner
         }
 
 rawGamesParser :: Parser [RawGame]
