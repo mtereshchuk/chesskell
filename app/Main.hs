@@ -2,7 +2,7 @@ module Main where
 
 import System.Environment            (getArgs)
 import Text.ParserCombinators.Parsec (parseFromFile)
-import Chesskell.Parser              (rawGamesParser)
+import Chesskell.PGNParser           (rawGamesParser)
 
 main = do
     args <- getArgs

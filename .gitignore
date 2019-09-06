@@ -4,3 +4,4 @@ Chesskell.cabal
 stack.yaml.lock
 
 .DS_Store
+*.pgn
