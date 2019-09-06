@@ -42,7 +42,7 @@ data RawMove
     } deriving (Eq, Show, Read)
 
 data RawGame = RawGame
-    { tags     :: [RawTag]
+    { rawTags  :: [RawTag]
     , rawMoves :: [RawMove]
     , winner   :: Maybe Color
     } deriving (Eq, Show, Read)
@@ -53,8 +53,8 @@ newtype Y = Y Int deriving (Eq, Show, Read)
 type ExtraCoord = Maybe (Either X Y)
 type Position = (X, Y)
 
-tagParser :: Parser RawTag
-tagParser = do
+rawTagParser :: Parser RawTag
+rawTagParser = do
     char '['
     tagName <- many letter
     spaces
@@ -62,7 +62,7 @@ tagParser = do
     let tagValue = init $ tail tagValueWithQuotes
     char ']'
     return RawTag
-        { tagName = tagName
+        { tagName  = tagName
         , tagValue = tagValue
         }
 
@@ -188,11 +188,11 @@ winnerParser =
 
 rawGameParser :: Parser RawGame
 rawGameParser = do
-    tags     <- many (tagParser <* spaces)
+    rawTags  <- many $ rawTagParser <* spaces
     rawMoves <- rawMovesParser
     winner   <- winnerParser
     return RawGame
-        { tags     = tags
+        { rawTags  = rawTags
         , rawMoves = rawMoves 
         , winner   = winner
         }
