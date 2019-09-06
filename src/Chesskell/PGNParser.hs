@@ -5,7 +5,7 @@ module Chesskell.PGNParser
     , X (..)
     , Y (..)
     , ExtraCoord
-    , Position
+    , RawPosition
     , rawGameParser
     , rawGamesParser
     ) where
@@ -23,11 +23,11 @@ data RawTag = RawTag
     } deriving (Eq, Show, Read)
 
 data RawMove
-    = BaseMove
+    = BaseRawMove
     { figureType   :: FigureType
     , extraCoord   :: ExtraCoord
     , wasCapture   :: Bool
-    , destPosition :: Position
+    , destPosition :: RawPosition
     , turnIntoType :: Maybe FigureType
     , wasCheck     :: Bool
     , wasMate      :: Bool
@@ -51,7 +51,7 @@ newtype X = X Char deriving (Eq, Show, Read)
 newtype Y = Y Int deriving (Eq, Show, Read)
 
 type ExtraCoord = Maybe (Either X Y)
-type Position = (X, Y)
+type RawPosition = (X, Y)
 
 rawTagParser :: Parser RawTag
 rawTagParser = do
@@ -97,8 +97,8 @@ wasCaptureParser =
     True <$ char 'x'
     <|> pure False
 
-positionParser :: Parser Position
-positionParser = do
+rawPositionParser :: Parser RawPosition
+rawPositionParser = do
     x <- xParser
     y <- yParser
     return (x, y)
@@ -109,18 +109,18 @@ turnIntoTypeParser =
     <|> Just <$> figureTypePawnExParser
     <|> pure Nothing
 
-mainPartOfBaseMoveParser :: Parser (ExtraCoord, Bool, Position)
-mainPartOfBaseMoveParser = try case1 <|> case2
+mainPartOfBaseRawMoveParser :: Parser (ExtraCoord, Bool, RawPosition)
+mainPartOfBaseRawMoveParser = try case1 <|> case2
     where 
         case1 = do
-            extraCoord <- extraCoordParser
-            wasCapture <- wasCaptureParser
-            position   <- positionParser
-            return (extraCoord, wasCapture, position)
+            extraCoord  <- extraCoordParser
+            wasCapture  <- wasCaptureParser
+            rawPosition <- rawPositionParser
+            return (extraCoord, wasCapture, rawPosition)
         case2 = do
-            wasCapture <- wasCaptureParser
-            position   <- positionParser
-            return (Nothing, wasCapture, position)
+            wasCapture  <- wasCaptureParser
+            rawPosition <- rawPositionParser
+            return (Nothing, wasCapture, rawPosition)
 
 wasCheckParser :: Parser Bool
 wasCheckParser = 
@@ -132,14 +132,14 @@ wasMateParser =
     True <$ char '#'
     <|> pure False
 
-baseMoveParser :: Parser RawMove
-baseMoveParser = do
+baseRawMoveParser :: Parser RawMove
+baseRawMoveParser = do
     figureType                             <- figureTypeParser
-    (extraCoord, wasCapture, destPosition) <- mainPartOfBaseMoveParser
+    (extraCoord, wasCapture, destPosition) <- mainPartOfBaseRawMoveParser
     turnIntoType                           <- turnIntoTypeParser
     wasCheck                               <- wasCheckParser
     wasMate                                <- wasMateParser
-    return BaseMove 
+    return BaseRawMove 
         { figureType   = figureType
         , extraCoord   = extraCoord
         , wasCapture   = wasCapture
@@ -171,7 +171,7 @@ longCastlingParser = do
 
 rawMoveParser :: Parser RawMove
 rawMoveParser = 
-    baseMoveParser 
+    baseRawMoveParser 
     <|> try longCastlingParser
     <|> shortCastlingParser
 

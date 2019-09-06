@@ -37,9 +37,9 @@ initialArrangement =
         toBlack       = Just . ((,) Black)
         toWhite       = Just . ((,) White)
 
-positionToChar :: Maybe Figure -> Char
-positionToChar Nothing = '.'
-positionToChar (Just (color, figureType)) = 
+placeToChar :: Maybe Figure -> Char
+placeToChar Nothing = '.'
+placeToChar (Just (color, figureType)) = 
     colorTransform color $ toSymbol figureType
     where 
         toSymbol ft = if (ft == Knight) 
@@ -50,4 +50,4 @@ positionToChar (Just (color, figureType)) =
             else id 
 
 arrangementToString :: Arrangement -> String
-arrangementToString arrangement = intercalate "\n" $ map positionToChar <$> arrangement
+arrangementToString arrangement = intercalate "\n" $ map placeToChar <$> arrangement
