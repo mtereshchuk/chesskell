@@ -34,8 +34,8 @@ initialArrangement =
         mainFigureRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
         pawnRow       = replicate chessBoardLength Pawn
         emptyRaw      = replicate chessBoardLength Nothing
-        toBlack       = (Just . ((,) Black))
-        toWhite       = (Just . ((,) White))
+        toBlack       = Just . ((,) Black)
+        toWhite       = Just . ((,) White)
 
 positionToChar :: Maybe Figure -> Char
 positionToChar Nothing = '.'
