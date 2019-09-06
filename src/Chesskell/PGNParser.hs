@@ -1,8 +1,9 @@
-module Chesskell.Parser
-    ( RawMove
-    , RawGame
-    , X
-    , Y
+module Chesskell.PGNParser
+    ( RawTag (..)
+    , RawMove (..)
+    , RawGame (..)
+    , X (..)
+    , Y (..)
     , ExtraCoord
     , Position
     , rawGameParser
@@ -14,7 +15,12 @@ import Data.Char                     (digitToInt)
 import Text.Parsec                   (try)
 import Text.ParserCombinators.Parsec (Parser, char, string, letter, digit, 
                                       spaces,  many, oneOf, noneOf)
-import Chesskell.Commons             (Tag (..), Color (..), FigureType (..))
+import Chesskell.ChessCommons        (Color (..), FigureType (..))
+
+data RawTag = RawTag 
+    { tagName  :: String
+    , tagValue :: String 
+    } deriving (Eq, Show, Read)
 
 data RawMove
     = BaseMove
@@ -36,7 +42,7 @@ data RawMove
     } deriving (Eq, Show, Read)
 
 data RawGame = RawGame
-    { tags     :: [Tag]
+    { tags     :: [RawTag]
     , rawMoves :: [RawMove]
     , winner   :: Maybe Color
     } deriving (Eq, Show, Read)
@@ -47,7 +53,7 @@ newtype Y = Y Int deriving (Eq, Show, Read)
 type ExtraCoord = Maybe (Either X Y)
 type Position = (X, Y)
 
-tagParser :: Parser Tag
+tagParser :: Parser RawTag
 tagParser = do
     char '['
     tagName <- many letter
@@ -55,7 +61,7 @@ tagParser = do
     tagValueWithQuotes <- many $ noneOf "]"
     let tagValue = init $ tail tagValueWithQuotes
     char ']'
-    return Tag 
+    return RawTag
         { tagName = tagName
         , tagValue = tagValue
         }
