@@ -4,7 +4,7 @@ module Chesskell.PGNParser
     , RawGame (..)
     , X (..)
     , Y (..)
-    , ExtraCoord
+    , RawExtraCoord
     , RawPosition
     , rawGameParser
     , rawGamesParser
@@ -24,13 +24,13 @@ data RawTag = RawTag
 
 data RawMove
     = BaseRawMove
-    { figureType   :: FigureType
-    , extraCoord   :: ExtraCoord
-    , wasCapture   :: Bool
-    , destPosition :: RawPosition
-    , turnIntoType :: Maybe FigureType
-    , wasCheck     :: Bool
-    , wasMate      :: Bool
+    { figureType    :: FigureType
+    , rawExtraCoord :: RawExtraCoord
+    , wasCapture    :: Bool
+    , rawPosition   :: RawPosition
+    , turnIntoType  :: Maybe FigureType
+    , wasCheck      :: Bool
+    , wasMate       :: Bool
     } 
     | ShortCastling
     { wasCheck     :: Bool
@@ -50,7 +50,7 @@ data RawGame = RawGame
 newtype X = X Char deriving (Eq, Show, Read)
 newtype Y = Y Int deriving (Eq, Show, Read)
 
-type ExtraCoord = Maybe (Either X Y)
+type RawExtraCoord = Maybe (Either X Y)
 type RawPosition = (X, Y)
 
 rawTagParser :: Parser RawTag
@@ -86,8 +86,8 @@ xParser = X <$> oneOf "abcdefgh"
 yParser :: Parser Y
 yParser = Y . digitToInt <$> oneOf "12345678"
 
-extraCoordParser :: Parser (Maybe (Either X Y))
-extraCoordParser =      
+rawExtraCoordParser :: Parser (Maybe (Either X Y))
+rawExtraCoordParser =      
         Just . Left  <$> xParser
     <|> Just . Right <$> yParser
     <|> pure Nothing
@@ -109,14 +109,14 @@ turnIntoTypeParser =
     <|> Just <$> figureTypePawnExParser
     <|> pure Nothing
 
-mainPartOfBaseRawMoveParser :: Parser (ExtraCoord, Bool, RawPosition)
+mainPartOfBaseRawMoveParser :: Parser (RawExtraCoord, Bool, RawPosition)
 mainPartOfBaseRawMoveParser = try case1 <|> case2
     where 
         case1 = do
-            extraCoord  <- extraCoordParser
-            wasCapture  <- wasCaptureParser
-            rawPosition <- rawPositionParser
-            return (extraCoord, wasCapture, rawPosition)
+            rawExtraCoord <- rawExtraCoordParser
+            wasCapture    <- wasCaptureParser
+            rawPosition   <- rawPositionParser
+            return (rawExtraCoord, wasCapture, rawPosition)
         case2 = do
             wasCapture  <- wasCaptureParser
             rawPosition <- rawPositionParser
@@ -134,19 +134,19 @@ wasMateParser =
 
 baseRawMoveParser :: Parser RawMove
 baseRawMoveParser = do
-    figureType                             <- figureTypeParser
-    (extraCoord, wasCapture, destPosition) <- mainPartOfBaseRawMoveParser
-    turnIntoType                           <- turnIntoTypeParser
-    wasCheck                               <- wasCheckParser
-    wasMate                                <- wasMateParser
+    figureType                               <- figureTypeParser
+    (rawExtraCoord, wasCapture, rawPosition) <- mainPartOfBaseRawMoveParser
+    turnIntoType                             <- turnIntoTypeParser
+    wasCheck                                 <- wasCheckParser
+    wasMate                                  <- wasMateParser
     return BaseRawMove 
-        { figureType   = figureType
-        , extraCoord   = extraCoord
-        , wasCapture   = wasCapture
-        , destPosition = destPosition
-        , turnIntoType = turnIntoType
-        , wasCheck     = wasCheck
-        , wasMate      = wasMate
+        { figureType    = figureType
+        , rawExtraCoord = rawExtraCoord
+        , wasCapture    = wasCapture
+        , rawPosition   = rawPosition
+        , turnIntoType  = turnIntoType
+        , wasCheck      = wasCheck
+        , wasMate       = wasMate
         }
 
 shortCastlingParser :: Parser RawMove
