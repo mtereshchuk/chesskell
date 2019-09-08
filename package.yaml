@@ -24,6 +24,7 @@ dependencies:
 - parsec
 - matrix
 - lens
+- containers
 
 library:
   source-dirs: src

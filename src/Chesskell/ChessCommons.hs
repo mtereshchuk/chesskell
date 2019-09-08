@@ -1,15 +1,12 @@
-module Chesskell.ChessCommons 
+module Chesskell.ChessCommons
     ( Color (..)
     , FigureType (..)
     , Tags (..)
-    , Move (..)
     , Game (..)
     , Figure
     , Place
-    , Position
     , Arrangement
     , chessBoardLength
-    , initialArrangement
     , oppositeColor
     , arrangementToString
     ) where
@@ -19,10 +16,10 @@ import Data.List (intercalate)
 import Data.Matrix
 
 data Color = White | Black 
-    deriving (Eq, Show, Read)
+    deriving (Eq, Ord, Show, Read)
 
 data FigureType = King | Queen | Rook | Knight | Bishop | Pawn 
-    deriving (Eq, Show, Read)
+    deriving (Eq, Ord, Show, Read)
 
 data Tags = Tags
     { event  :: Maybe String
@@ -34,53 +31,18 @@ data Tags = Tags
     , result :: Maybe String
     } deriving (Eq, Show, Read)
 
-data Move 
-    = BaseMove
-    { figure         :: Figure
-    , fromPos        :: Position
-    , toPos          :: Position
-    }
-    | EnPassant
-    { color           :: Color
-    , fromPos         :: Position
-    , toPos           :: Position
-    , capturedPawnPos :: Position
-    }
-    | Castling
-    { color       :: Color
-    , kingFromPos :: Position
-    , kingToPos   :: Position
-    , rookFromPos :: Position
-    , rookToPos   :: Position
-    }
-
 data Game = Game
-    { tags   :: Tags
-    , moves  :: [Move]
-    , winner :: Maybe Color
+    { tags         :: Tags
+    , arrangements :: [Arrangement]
+    , winner       :: Maybe Color
     }
 
 type Figure = (Color, FigureType)
 type Place = Maybe Figure
-type Position = (Int, Int)
 type Arrangement = Matrix Place
 
 chessBoardLength :: Int
 chessBoardLength = 8
-
-initialArrangement :: Arrangement
-initialArrangement = fromLists $
-       [toBlack <$> mainFigureRow]
-    ++ [toBlack <$> pawnRow]
-    ++ replicate (chessBoardLength - 4) emptyRaw
-    ++ [toWhite <$> pawnRow]
-    ++ [toWhite <$> mainFigureRow]
-    where 
-        mainFigureRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
-        pawnRow       = replicate chessBoardLength Pawn
-        emptyRaw      = replicate chessBoardLength Nothing
-        toBlack       = Just . ((,) Black)
-        toWhite       = Just . ((,) White)
 
 oppositeColor :: Color -> Color
 oppositeColor White = Black
