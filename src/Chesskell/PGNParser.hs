@@ -6,15 +6,13 @@ module Chesskell.PGNParser
     , Y (..)
     , RawExtraCoord
     , RawPosition
-    , rawGameParser
-    , rawGamesParser
+    , parsePGNFile
     ) where
 
 import Control.Applicative           ((<|>))
 import Data.Char                     (digitToInt)
-import Text.Parsec                   (try)
-import Text.ParserCombinators.Parsec (Parser, char, string, letter, digit, 
-                                      spaces,  many, oneOf, noneOf)
+import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, 
+                                      spaces, many, oneOf, noneOf, try, parseFromFile)
 import Chesskell.ChessCommons        (Color (..), FigureType (..))
 
 data RawTag = RawTag 
@@ -199,3 +197,6 @@ rawGameParser = do
 
 rawGamesParser :: Parser [RawGame]
 rawGamesParser = many $ rawGameParser <* spaces
+
+parsePGNFile :: FilePath -> IO (Either ParseError [RawGame])
+parsePGNFile = parseFromFile rawGamesParser
