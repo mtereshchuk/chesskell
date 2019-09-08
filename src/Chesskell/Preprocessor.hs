@@ -12,13 +12,15 @@ import qualified Data.Map.Strict as Map hiding (take, map, filter)
 import Control.Lens
 import Chesskell.ChessCommons
 import Chesskell.PGNParser
+--import Chesskell.Util
 
 data GameState = GameState
     { _arrangement :: Arrangement
     , _figToPosMap :: Map Figure [Position]
+    , _enPassantOp :: Maybe Position
     }
 
-type ExtraCoord = Maybe Int
+type ExtraCoord = Maybe (Either Int Int)
 type Position = (Int, Int) 
 type FigAndPos = (Figure, Position)
 
@@ -45,29 +47,61 @@ caclJ (Y digit) = 8 - digit
 
 calcExtraCoord :: RawExtraCoord -> ExtraCoord
 calcExtraCoord Nothing          = Nothing
-calcExtraCoord (Just (Left x))  = Just $ calcI x
-calcExtraCoord (Just (Right y)) = Just $ caclJ y
+calcExtraCoord (Just (Left x))  = Just . Left  $ calcI x
+calcExtraCoord (Just (Right y)) = Just . Right $ caclJ y
 
 calcPosition :: RawPosition -> Position
 calcPosition (x, y) = (calcI x, caclJ y)
 
-calcKingFromPos :: Figure -> ExtraCoord -> Position -> GameState -> Position
-calcKingFromPos = undefined
+getExtraCoordPred :: ExtraCoord -> Position -> Bool
+getExtraCoordPred Nothing _            = True
+getExtraCoordPred (Just (Left i)) pos  = i == pos^._1
+getExtraCoordPred (Just (Right j)) pos = j == pos^._2
 
-calcQueenFromPos :: Figure -> ExtraCoord  -> Position -> GameState -> Position
-calcQueenFromPos = undefined
+validToPosPawnPred :: Position -> Position -> Color -> GameState -> Bool
+validToPosPawnPred (i, j) toPos@(ii, jj) color gameState
+    | abs (ii - i) == 1 && j == jj && (gameState^.arrangement) Matrix.! toPos == Nothing                    = True
+    | abs (ii - i) == 2 && i == colorCoord && j == jj && (gameState^.arrangement) Matrix.! toPos == Nothing = True
+    | abs (ii - i) == 1 && abs (jj - j) == 1 && (gameState^.arrangement) Matrix.! toPos /= Nothing          = True
+    | abs (ii - i) == 1 && abs (jj - j) == 1 && gameState^.enPassantOp == (Just toPos)                      = True
+    | otherwise                                                                                             = False
+    where colorCoord = if (color == White) then 6 else 1
 
-calcRookFromPos :: Figure -> ExtraCoord -> Position -> GameState -> Position
-calcRookFromPos = undefined
+getBetweenPosLine :: Position -> Position -> [Position]
+getBetweenPosLine (i, j) (ii, jj)
+    | i == ii   = notDiagonal ((,) i) j jj
+    | j == jj   = notDiagonal (\x -> (x, j)) i ii
+    | otherwise = 
+        let minI = min i ii
+            maxI = max i ii
+            minJ = min j jj
+            maxJ = max j jj
+        in init $ tail [(x, y) | x <- [minI..maxI], y <- [minJ..maxJ], x - y == i - j]
+    where notDiagonal commonApp bord1 bord2 = 
+            let minBord = min bord1 bord2
+                maxBord = max bord1 bord2
+            in init $ tail [commonApp x | x <- [minBord..maxBord]]
 
-calcKnightFromPos :: Figure -> ExtraCoord -> Position -> GameState -> Position
-calcKnightFromPos = undefined
+betweenPosLineIsClean :: Position -> Position -> Arrangement -> Bool
+betweenPosLineIsClean fromPos toPos arrangement =
+    let betweenPosLine = getBetweenPosLine fromPos toPos
+    in all (\pos -> arrangement Matrix.! pos == Nothing) betweenPosLine
 
-calcBishopFromPos :: Figure -> ExtraCoord -> Position -> GameState -> Position
-calcBishopFromPos = undefined
-
-calcPawnFromPos :: Figure -> ExtraCoord -> Position -> GameState -> Position
-calcPawnFromPos = undefined
+calcFromPos :: Figure -> ExtraCoord -> Position -> GameState -> Position
+calcFromPos figure@(color, figureType) extraCoord toPos@(ii, jj) gameState =
+    let candidates = (gameState^.figToPosMap) Map.! figure
+        ecFiltered = filter extraCoordPred candidates
+        filtered   = filter validToPosPred ecFiltered
+    in head filtered
+    where extraCoordPred = getExtraCoordPred extraCoord
+          validToPosPred = case figureType of
+            King   -> \_ -> True
+            Knight -> \(i, j) ->
+                let dist = (abs $ ii - i, abs $ jj - j)
+                in dist == (1, 2) || dist == (2, 1)
+            Pawn   -> undefined
+            _      -> \fromPos -> 
+                betweenPosLineIsClean fromPos toPos (gameState^.arrangement)
 
 makeMoveBase :: FigAndPos -> Position -> GameState -> GameState
 makeMoveBase (figure, fromPos) toPos gameState = 
@@ -80,11 +114,16 @@ makeMoveBase (figure, fromPos) toPos gameState =
 
 makeMoveCapture :: FigAndPos -> FigAndPos -> Position -> GameState -> GameState
 makeMoveCapture figAndPos (captured, capturedPos) toPos gameState = 
-    let updatedArgm  = arrangement %~ cleanCapturedPos $ gameState
-        updatedState = figToPosMap %~ updateCaptured $ updatedArgm
-    in makeMoveBase figAndPos toPos updatedState
+    let updatedArgm     = arrangement %~ cleanCapturedPos $ gameState
+        updatedCaptured = figToPosMap %~ updateCaptured $ updatedArgm
+    in makeMoveBase figAndPos toPos updatedCaptured
     where cleanCapturedPos = Matrix.setElem Nothing capturedPos
           updateCaptured   = Map.adjust (filter (/= capturedPos)) captured
+
+makeMoveEnPassant :: FigAndPos -> Position -> Position -> GameState -> GameState
+makeMoveEnPassant figAndPos enPassantPos toPos gameState = 
+    let updatedEnPasOp  = enPassantOp .~ (Just enPassantPos) $ gameState
+    in makeMoveBase figAndPos toPos updatedEnPasOp
 
 makeMoveCastling :: FigAndPos -> FigAndPos -> Position -> Position -> GameState -> GameState
 makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState = 
@@ -99,28 +138,22 @@ makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gam
           updateRook       = Map.adjust ((rookToPos :) . filter (/= rookFromPos)) rook
 
 calcNextGameState :: RawMove -> Color -> GameState -> GameState
-calcNextGameState (BaseRawMove figureType rawExtraCoord wasCapture rawPosition turnIntoType _ _) color gameState =
-    if (wasCapture)
-        then 
-            let toPosFigure     = (gameState^.arrangement) Matrix.! capturedPos
-                enPassantChange = \coord -> if (color == White) then coord + 1 else coord - 1
-                capturedPos     = case toPosFigure of 
+calcNextGameState (BaseRawMove figureType rawExtraCoord wasCapture rawPosition turnIntoType _ _) color gameState
+    | wasCapture = 
+        let toPosFigure     = (gameState^.arrangement) Matrix.! capturedPos
+            enPassantChange = \coord -> if (color == White) then coord + 1 else coord - 1
+            capturedPos     = case toPosFigure of 
                     (Just _) -> toPos
                     _        -> _1 %~ enPassantChange $ toPos
-                captured        = fromJust ((gameState^.arrangement) Matrix.! capturedPos)
-            in makeMoveCapture (figure, fromPos) (captured, capturedPos) toPos gameState
-        else makeMoveBase (figure, fromPos) toPos gameState
+            captured        = fromJust ((gameState^.arrangement) Matrix.! capturedPos)
+        in makeMoveCapture (figure, fromPos) (captured, capturedPos) toPos gameState
+    | figureType == Pawn && i == (if (color == White) then 6 else 1) && abs (ii - i) == 2 =
+        makeMoveEnPassant (figure, fromPos) (if (color == White) then (ii - 1, jj) else (ii + 1, jj)) toPos gameState
+    | otherwise  = makeMoveBase (figure, fromPos) toPos gameState
     where figure          = (color, figureType)
           extraCoord      = calcExtraCoord rawExtraCoord
-          toPos           = calcPosition rawPosition
-          fromPosCalcFunc = case figureType of
-            King   -> calcKingFromPos
-            Queen  -> calcQueenFromPos
-            Rook   -> calcRookFromPos
-            Knight -> calcKnightFromPos
-            Bishop -> calcBishopFromPos
-            _      -> calcPawnFromPos
-          fromPos         = fromPosCalcFunc figure extraCoord toPos gameState
+          toPos@(ii, jj)  = calcPosition rawPosition
+          fromPos@(i, j)  = calcFromPos figure extraCoord toPos gameState
 calcNextGameState castling color gameState =
     makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState
     where colorCoord  = if (color == White) then 7 else 0 
@@ -180,6 +213,7 @@ calcArrangements rawMoves = calcArrangementsHelper rawMoves [] White initialGame
     where initialGameState = GameState 
             { _arrangement = initialArrangement
             , _figToPosMap = initialFigToPosMap
+            , _enPassantOp = Nothing
             }
 
 calcGame :: RawGame -> Game
