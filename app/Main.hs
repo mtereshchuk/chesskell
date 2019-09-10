@@ -1,11 +1,15 @@
 module Main where
 
 import System.Environment            (getArgs)
-import Text.ParserCombinators.Parsec (parseFromFile)
-import Chesskell.PGNParser           (rawGamesParser)
+import Text.ParserCombinators.Parsec (parseFromFile, parse)
+import Chesskell.PGNParser
+import Chesskell.ChessCommons
+import Chesskell.Preprocessor
+import Data.List
 
 main = do
     args <- getArgs
     let filePath = args !! 0
-    result <- parseFromFile rawGamesParser filePath
-    putStrLn (show result)
+    (Right rawGames) <- parsePGNFile filePath
+    let argms = arrangements (head $ preprocessRawGames rawGames)
+    putStrLn $ intercalate "\n\n" (map arrangementToString argms)
