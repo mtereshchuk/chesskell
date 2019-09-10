@@ -71,9 +71,9 @@ figureTypePawnExParser :: Parser FigureType
 figureTypePawnExParser = 
         King   <$ char 'K'
     <|> Queen  <$ char 'Q'
-    <|> Rook   <$ char 'R'
-    <|> Knight <$ char 'N'
     <|> Bishop <$ char 'B'
+    <|> Knight <$ char 'N'
+    <|> Rook   <$ char 'R'
 
 figureTypeParser :: Parser FigureType
 figureTypeParser = figureTypePawnExParser <|> pure Pawn

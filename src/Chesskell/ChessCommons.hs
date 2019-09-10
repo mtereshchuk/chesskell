@@ -18,7 +18,7 @@ import Data.Matrix
 data Color = White | Black 
     deriving (Eq, Ord, Show, Read)
 
-data FigureType = King | Queen | Rook | Knight | Bishop | Pawn 
+data FigureType = King | Queen | Bishop | Knight | Rook | Pawn 
     deriving (Eq, Ord, Show, Read)
 
 data Tags = Tags
