@@ -13,12 +13,12 @@ import Control.Applicative           ((<|>))
 import Data.Char                     (digitToInt)
 import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, 
                                       spaces, many, oneOf, noneOf, try, parseFromFile)
-import Chesskell.ChessCommons        (Color (..), FigureType (..))
+import Chesskell.Chess               (Color (..), FigureType (..))
 
 data RawTag = RawTag 
     { tagName  :: String
     , tagValue :: String 
-    } deriving (Eq, Show, Read)
+    }
 
 data RawMove
     = BaseRawMove
@@ -37,16 +37,16 @@ data RawMove
     | LongCastling
     { wasCheck     :: Bool
     , wasMate      :: Bool
-    } deriving (Eq, Show, Read)
+    }
 
 data RawGame = RawGame
     { rawTags   :: [RawTag]
     , rawMoves  :: [RawMove]
     , rawWinner :: Maybe Color
-    } deriving (Eq, Show, Read)
+    }
 
-newtype X = X Char deriving (Eq, Show, Read)
-newtype Y = Y Int deriving (Eq, Show, Read)
+newtype X = X Char
+newtype Y = Y Int
 
 type RawExtraCoord = Maybe (Either X Y)
 type RawPosition = (X, Y)

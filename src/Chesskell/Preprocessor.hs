@@ -10,17 +10,17 @@ import qualified Data.Matrix as Matrix hiding (fromList)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map hiding (take, map, filter)
 import Control.Lens
-import Chesskell.ChessCommons
+import Chesskell.Chess
+import Chesskell.Game as Game--(Game (..), Tags (..), Move (..))
 import Chesskell.PGNParser
 
 data GameState = GameState
     { _arrangement :: Arrangement
-    , _figToPosMap :: Map Figure [Position]
-    , _enPassantOp :: Maybe Position
-    } deriving (Show)
+    , _figToPosMap      :: Map Figure [Position]
+    , _enPassantOp      :: Maybe Position
+    }
 
 type ExtraCoord = Maybe (Either Int Int)
-type Position = (Int, Int) 
 type FigAndPos = (Figure, Position)
 
 makeLenses ''GameState
@@ -176,19 +176,21 @@ makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gam
           updateKing       = Map.adjust ((kingToPos :) . filter (/= kingFromPos)) king
           updateRook       = Map.adjust ((rookToPos :) . filter (/= rookFromPos)) rook
 
-calcNextGameState :: RawMove -> Color -> GameState -> GameState
+calcNextGameState :: RawMove -> Color -> GameState -> (GameState, Position, Position)
 calcNextGameState (BaseRawMove figureType rawExtraCoord wasCapture rawPosition turnIntoType _ _) color gameState =
     let captureUpdate   = getCaptureUpdate figure toPos wasCapture
         enPassantUpdate = getEnPassantUpdate (figure, fromPos) toPos
         moveUpdate      = makeMoveBase (figure, fromPos) toPos
         pawnTurnUpdate  = getPawnTurnUpdate (figure, toPos) turnIntoType
-    in (pawnTurnUpdate . moveUpdate . enPassantUpdate . captureUpdate) gameState
+        nextGameState   = (pawnTurnUpdate . moveUpdate . enPassantUpdate . captureUpdate) gameState
+    in (nextGameState, fromPos, toPos)
     where figure          = (color, figureType)
           extraCoord      = calcExtraCoord rawExtraCoord
           toPos@(ii, jj)  = calcPosition rawPosition
           fromPos@(i, j)  = calcFromPos figure extraCoord toPos gameState
 calcNextGameState castling color gameState =
-    makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState
+    let nextGameState = makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState
+    in (nextGameState, kingFromPos, kingToPos)
     where colorCoord  = if (color == White) then 8 else 1
           king        = (color, King)
           kingFromPos = (colorCoord, 5)
@@ -203,46 +205,26 @@ calcNextGameState castling color gameState =
             ShortCastling _ _ -> (colorCoord, 6)
             _                 -> (colorCoord, 4)
 
-calcArrangementsHelper :: [RawMove] -> [Arrangement] -> Color -> GameState -> [Arrangement]
-calcArrangementsHelper [] argms _ gameState             = argms ++ [gameState^.arrangement]
-calcArrangementsHelper (rm : rms) argms color gameState = 
-    let newArgms      = argms ++ [gameState^.arrangement]
-        nextColor     = oppositeColor color
-        nextGameState = calcNextGameState rm color gameState
-    in calcArrangementsHelper rms newArgms nextColor nextGameState
-
-initialArrangement :: Arrangement
-initialArrangement = Matrix.fromLists $
-       [toBlack <$> mainFigureRow]
-    ++ [toBlack <$> pawnRow]
-    ++ replicate (chessBoardLength - 4) emptyRaw
-    ++ [toWhite <$> pawnRow]
-    ++ [toWhite <$> mainFigureRow]
-    where
-        mainFigureRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
-        pawnRow       = replicate chessBoardLength Pawn
-        emptyRaw      = replicate chessBoardLength Nothing
-        toBlack       = Just . ((,) Black)
-        toWhite       = Just . ((,) White)
+calcMovesHelper :: [RawMove] -> [Move] -> Color -> GameState -> [Move]
+--calcMovesHelper _ [] _ gameState     =
+calcMovesHelper [] moves _ gameState = moves
+calcMovesHelper (rm : rms) moves prevColor prevGameState = 
+    let --newMoves      = argms ++ [gameState^.arrangement]
+        color     = oppositeColor prevColor
+        (gameState, fromPos, toPos) = calcNextGameState rm color prevGameState
+        newMove = Move (gameState^.arrangement) (Just fromPos) (Just toPos) 
+    in calcMovesHelper rms (moves ++[newMove]) color gameState
 
 initialFigToPosMap :: Map Figure [Position]
-initialFigToPosMap = Map.fromList
-    [ ((White, King)  , [(8, 5)])
-    , ((White, Queen) , [(8, 4)])
-    , ((White, Bishop), [(8, 3), (8, 6)])
-    , ((White, Knight), [(8, 2), (8, 7)])
-    , ((White, Rook)  , [(8, 1), (8, 8)])
-    , ((White, Pawn)  , take 8 $ iterate (_2 %~ (+1)) (7, 1))
-    , ((Black, King)  , [(1, 5)])
-    , ((Black, Queen) , [(1, 4)])
-    , ((Black, Bishop), [(1, 3), (1, 6)])
-    , ((Black, Knight), [(1, 2), (1, 7)])
-    , ((Black, Rook)  , [(1, 1), (1, 8)])
-    , ((Black, Pawn)  , take 8 $ iterate (_2 %~ (+1)) (2, 1))
-    ]
+initialFigToPosMap = 
+    let figAndPosList = foldMap toFigAndPos [(x, y) | x <- [1..chessBoardLength], y <- [1..chessBoardLength]]
+    in Map.fromListWith (++) figAndPosList
+    where toFigAndPos pos = case initialArrangement Matrix.! pos of
+            Nothing       -> []
+            (Just figure) -> [(figure, [pos])]
 
-calcArrangements :: [RawMove] -> [Arrangement]
-calcArrangements rawMoves = calcArrangementsHelper rawMoves [] White initialGameState
+calcMoves :: [RawMove] -> [Move]
+calcMoves rawMoves = calcMovesHelper rawMoves [] White initialGameState
     where initialGameState = GameState 
             { _arrangement = initialArrangement
             , _figToPosMap = initialFigToPosMap
@@ -252,7 +234,7 @@ calcArrangements rawMoves = calcArrangementsHelper rawMoves [] White initialGame
 preprocessRawGames :: [RawGame] -> [Game]
 preprocessRawGames = map preprocessRawGame
     where preprocessRawGame rawGame = Game 
-            { tags         = calcTags $ rawTags rawGame
-            , arrangements = calcArrangements $ rawMoves rawGame
+            { tags         = calcTags  $ rawTags rawGame
+            , arrangements = calcMoves $ rawMoves rawGame
             , winner       = rawWinner rawGame            
             }
