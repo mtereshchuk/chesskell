@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-} --total clean refactor and so on
 
 module Chesskell.Preprocessor where
 
@@ -33,8 +33,8 @@ calcTags rawTags =
         , site   = findTagValue "Site"
         , date   = findTagValue "Date"
         , round  = findTagValue "Round"
-        , white  = findTagValue "White"
-        , black  = findTagValue "Black"
+        , whiteP  = findTagValue "White"
+        , blackP  = findTagValue "Black"
         , result = findTagValue "Result"
         }
 
@@ -212,8 +212,8 @@ calcMovesHelper (rm : rms) moves prevColor prevGameState =
     let --newMoves      = argms ++ [gameState^.arrangement]
         color     = oppositeColor prevColor
         (gameState, fromPos, toPos) = calcNextGameState rm color prevGameState
-        newMove = Move (gameState^.arrangement) (Just fromPos) (Just toPos) 
-    in calcMovesHelper rms (moves ++[newMove]) color gameState
+        newMove = Move (gameState^.arrangement) fromPos toPos
+    in calcMovesHelper rms (moves ++ [newMove]) color gameState
 
 initialFigToPosMap :: Map Figure [Position]
 initialFigToPosMap = 
@@ -224,7 +224,7 @@ initialFigToPosMap =
             (Just figure) -> [(figure, [pos])]
 
 calcMoves :: [RawMove] -> [Move]
-calcMoves rawMoves = calcMovesHelper rawMoves [] White initialGameState
+calcMoves rawMoves = calcMovesHelper rawMoves [] Black initialGameState
     where initialGameState = GameState 
             { _arrangement = initialArrangement
             , _figToPosMap = initialFigToPosMap

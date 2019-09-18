@@ -1,4 +1,4 @@
-module Chesskell.PGNParser
+module Chesskell.PGNParser -- add skip comments
     ( RawTag (..)
     , RawMove (..)
     , RawGame (..)

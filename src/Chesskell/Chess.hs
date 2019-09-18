@@ -9,6 +9,7 @@ module Chesskell.Chess
     , oppositeColor
     , initialArrangement
     , arrangementToString
+    , getAllFigures
     ) where
 
 import Data.Char (toLower)
@@ -61,3 +62,6 @@ placeToChar (Just (color, figureType)) =
 
 arrangementToString :: Arrangement -> String
 arrangementToString arrangement = intercalate "\n" $ map placeToChar <$> Matrix.toLists arrangement
+
+getAllFigures :: [Figure]
+getAllFigures = [(x, y) | x <- [White, Black], y <- [King, Queen, Bishop, Knight, Rook, Pawn]]

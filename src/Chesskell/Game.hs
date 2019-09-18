@@ -7,15 +7,15 @@ data Tags = Tags
     , site   :: Maybe String
     , date   :: Maybe String
     , round  :: Maybe String
-    , white  :: Maybe String
-    , black  :: Maybe String
+    , whiteP  :: Maybe String
+    , blackP  :: Maybe String
     , result :: Maybe String
     }
 
 data Move = Move
     { moveArrangement :: Arrangement
-    , fromPos         :: Maybe Position
-    , toPos           :: Maybe Position
+    , fromPos         :: Position
+    , toPos           :: Position
     }
 
 data Game = Game
