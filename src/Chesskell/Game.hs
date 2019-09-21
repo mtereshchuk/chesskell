@@ -1,25 +1,29 @@
-module Chesskell.Game where
+module Chesskell.Game
+  ( Tags (..)
+  , Move (..)
+  , Game (..)
+  ) where
 
-import Chesskell.Chess 
+import Chesskell.Chess (Color, Position, Arrangement) 
 
 data Tags = Tags
-    { event  :: Maybe String
-    , site   :: Maybe String
-    , date   :: Maybe String
-    , round  :: Maybe String
-    , whiteP  :: Maybe String
-    , blackP  :: Maybe String
-    , result :: Maybe String
-    }
+  { event  :: Maybe String
+  , site   :: Maybe String
+  , date   :: Maybe String
+  , round  :: Maybe String
+  , whiteP :: Maybe String
+  , blackP :: Maybe String
+  , result :: Maybe String
+  }
 
 data Move = Move
-    { moveArrangement :: Arrangement
-    , fromPos         :: Position
-    , toPos           :: Position
-    }
+ { arrangement :: Arrangement
+ , fromPos     :: Position
+ , toPos       :: Position
+ }
 
 data Game = Game
-    { tags         :: Tags
-    , arrangements :: [Move]
-    , winner       :: Maybe Color
-    }
+  { tags         :: Tags
+  , arrangements :: [Move]
+  , winner       :: Maybe Color
+  }

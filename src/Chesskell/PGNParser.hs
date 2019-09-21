@@ -12,7 +12,7 @@ module Chesskell.PGNParser
 import Data.Char                     (digitToInt)
 import Control.Applicative           ((<|>))
 import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, 
-                                      spaces, many, oneOf, noneOf, try, parseFromFile)
+                                     spaces, many, oneOf, noneOf, try, parseFromFile)
 import Chesskell.Chess               (Color (..), PieceType (..))
 
 data RawTag = RawTag
