@@ -1,31 +1,30 @@
 module Chesskell.Chess
-    ( Color (..)
-    , FigureType (..)
-    , Figure
-    , Position
-    , Place
-    , Arrangement
-    , chessBoardLength
-    , oppositeColor
-    , initialArrangement
-    , arrangementToString
-    , getAllFigures
-    ) where
+  ( Color (..)
+  , PieceType (..)
+  , Piece
+  , Position
+  , Place
+  , Arrangement
+  , chessBoardLength
+  , oppositeColor
+  , getAllPieces
+  , initialArrangement
+  ) where
 
-import Data.Char (toLower)
-import Data.List (intercalate)
+import           Data.Char   (toLower)
+import           Data.List   (intercalate)
+import           Data.Matrix (Matrix)
 import qualified Data.Matrix as Matrix
-import Data.Matrix (Matrix)
 
 data Color = White | Black 
-    deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show)
 
-data FigureType = King | Queen | Bishop | Knight | Rook | Pawn 
-    deriving (Eq, Ord, Show)
+data PieceType = King | Queen | Bishop | Knight | Rook | Pawn
+  deriving (Eq, Ord, Show)
 
-type Figure = (Color, FigureType)
+type Piece = (Color, PieceType)
 type Position = (Int, Int)
-type Place = Maybe Figure
+type Place = Maybe Piece
 type Arrangement = Matrix Place
 
 chessBoardLength :: Int
@@ -35,33 +34,19 @@ oppositeColor :: Color -> Color
 oppositeColor White = Black
 oppositeColor Black = White
 
+getAllPieces :: [Piece]
+getAllPieces = [(c, pt) | c <- [White, Black], pt <- [King, Queen, Bishop, Knight, Rook, Pawn]]
+
 initialArrangement :: Arrangement
 initialArrangement = Matrix.fromLists $
-       [toBlack <$> mainFigureRow]
-    ++ [toBlack <$> pawnRow]
-    ++ replicate (chessBoardLength - 4) emptyRaw
-    ++ [toWhite <$> pawnRow]
-    ++ [toWhite <$> mainFigureRow]
+     [toBlack <$> mainPieceRow]
+  ++ [toBlack <$> pawnRow]
+  ++ replicate (chessBoardLength - 4) emptyRaw
+  ++ [toWhite <$> pawnRow]
+  ++ [toWhite <$> mainPieceRow]
     where
-        mainFigureRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
-        pawnRow       = replicate chessBoardLength Pawn
-        emptyRaw      = replicate chessBoardLength Nothing
-        toBlack       = Just . ((,) Black)
-        toWhite       = Just . ((,) White)
-
-placeToChar :: Maybe Figure -> Char
-placeToChar Nothing = '.'
-placeToChar (Just (color, figureType)) = 
-    colorTransform color $ toSymbol figureType
-    where toSymbol ft = if (ft == Knight) 
-            then 'N' 
-            else head $ show ft
-          colorTransform c = if (c == Black) 
-            then toLower
-            else id 
-
-arrangementToString :: Arrangement -> String
-arrangementToString arrangement = intercalate "\n" $ map placeToChar <$> Matrix.toLists arrangement
-
-getAllFigures :: [Figure]
-getAllFigures = [(x, y) | x <- [White, Black], y <- [King, Queen, Bishop, Knight, Rook, Pawn]]
+      mainPieceRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
+      pawnRow       = replicate chessBoardLength Pawn
+      emptyRaw      = replicate chessBoardLength Nothing
+      toBlack       = Just . (,) Black
+      toWhite       = Just . (,) White

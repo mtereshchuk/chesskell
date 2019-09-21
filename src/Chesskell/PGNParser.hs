@@ -22,7 +22,7 @@ data RawTag = RawTag
 
 data RawMove
   = BaseRawMove
-  { pieceType    :: PieceType
+  { pieceType     :: PieceType
   , rawExtraCoord :: RawExtraCoord
   , wasCapture    :: Bool
   , rawPosition   :: RawPosition
@@ -138,7 +138,7 @@ baseRawMoveParser = do
   wasCheck                                 <- wasCheckParser
   wasMate                                  <- wasMateParser
   return BaseRawMove
-    { pieceType    = pieceType
+    { pieceType     = pieceType
     , rawExtraCoord = rawExtraCoord
     , wasCapture    = wasCapture
     , rawPosition   = rawPosition
