@@ -1,0 +1,1 @@
+module Chesskell.Controller where

@@ -1,7 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
-module Chesskell.Preprocessor (preprocessRawGames) where
+module Chesskell.Preprocessor 
+  ( preprocessRawGames
+  ) where
 
 import           Prelude hiding        (round)
 import           Data.Char             (ord)
@@ -132,7 +134,7 @@ removeEnPassant = enPassantOp .~ Nothing
 getCaptureUpdate :: Piece -> Position -> Bool -> GameState -> GameState
 getCaptureUpdate (color, _) toPos wasCapture gameState = if wasCapture
   then
-    let toPosPiece           = (gameState^.arrangement) Matrix.! toPos
+    let toPosPiece            = (gameState^.arrangement) Matrix.! toPos
         enPassantChange coord = if color == White then coord + 1 else coord - 1
         capturedPos           = case toPosPiece of
           (Just _) -> toPos
@@ -232,16 +234,16 @@ initialPieceToPosMap =
   where
     toPieceAndPos pos =
       case initialArrangement Matrix.! pos of
-      Nothing       -> []
+      Nothing      -> []
       (Just piece) -> [(piece, [pos])]
 
 calcMoves :: [RawMove] -> [Move]
 calcMoves rawMoves = calcMovesHelper rawMoves [] Black initialGameState
   where
     initialGameState = GameState
-      { _arrangement = initialArrangement
+      { _arrangement   = initialArrangement
       , _pieceToPosMap = initialPieceToPosMap
-      , _enPassantOp = Nothing
+      , _enPassantOp   = Nothing
       }
 
 preprocessRawGames :: [RawGame] -> [Game]

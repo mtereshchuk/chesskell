@@ -14,20 +14,20 @@ data World = World
     { games   :: [Game]
     , gameNum :: Int
     , moveNum :: Int
-    , figurePicMap :: Map Figure Picture
+    , figurePicMap :: Map Piece Picture
     }
 
 getDisplay :: Display
 getDisplay = InWindow "Chesskell" (700, 700) (0, 0)
 
 run :: IO ()
-run = do
+run = putStrLn "hello" {-do
     args <- getArgs
     let filePath = args !! 0
     res <- parsePGNFile filePath
     let (Right rawGames) = res
     let games = preprocessRawGames rawGames
-    let figs = getAllFigures :: [Figure]
+    let figs = getAllPieces :: [Piece]
     let a = map figureToPicture figs
     pics <- sequence a
     let pairList = zip figs pics
@@ -42,10 +42,10 @@ showWorld (World games gameNum moveNum figureToPicMap) =
         argm = moveArrangement move
     in undefined
 
-figureImagePath :: Figure -> FilePath
-figureImagePath (color, figureType) = "resources/images/" ++ show color ++ "_" ++ show figureType ++ ".bmp"
+figureImagePath :: Piece -> FilePath
+figureImagePath (color, pieceType) = "resources/images/" ++ show color ++ "_" ++ show pieceType ++ ".bmp"
 
-figureToPicture :: Figure -> IO Picture
+figureToPicture :: Piece -> IO Picture
 figureToPicture figure = do
     figPic <- loadBMP (figureImagePath figure)
     --let x = (fromIntegral j) * 80.0 - 320.0
@@ -72,4 +72,4 @@ arrangementToPic arngm = --do
     let pics = fmap func [(x, y) | x <- [1..chessBoardLength], y <- [1..chessBoardLength]]
     --a <- sequence pics
     return (pictures undefined)
-    where func pos = placeToPicture pos (arngm Matrix.! pos)
+    where func pos = placeToPicture pos (arngm Matrix.! pos)-}
