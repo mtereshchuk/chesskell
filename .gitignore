@@ -6,3 +6,5 @@ stack.yaml.lock
 .DS_Store
 *.pgn
 .vscode/
+.idea/
+*.iml
