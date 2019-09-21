@@ -46,7 +46,7 @@ initialArrangement = Matrix.fromLists $
   ++ [toWhite <$> mainPieceRow]
     where
       mainPieceRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
-      pawnRow       = replicate chessBoardLength Pawn
-      emptyRaw      = replicate chessBoardLength Nothing
-      toBlack       = Just . (,) Black
-      toWhite       = Just . (,) White
+      pawnRow      = replicate chessBoardLength Pawn
+      emptyRaw     = replicate chessBoardLength Nothing
+      toBlack      = Just . (,) Black
+      toWhite      = Just . (,) White
