@@ -1,49 +1,49 @@
-module Chesskell.PGNParser -- add skip comments
-    ( RawTag (..)
-    , RawMove (..)
-    , RawGame (..)
-    , X (..)
-    , Y (..)
-    , RawExtraCoord
-    , RawPosition
-    , parsePGNFile
-    ) where
+module Chesskell.PGNParser
+  ( RawTag (..)
+  , RawMove (..)
+  , RawGame (..)
+  , X (..)
+  , Y (..)
+  , RawExtraCoord
+  , RawPosition
+  , parsePGNFile
+  ) where
 
-import Control.Applicative           ((<|>))
 import Data.Char                     (digitToInt)
+import Control.Applicative           ((<|>))
 import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, 
                                       spaces, many, oneOf, noneOf, try, parseFromFile)
-import Chesskell.Chess               (Color (..), FigureType (..))
+import Chesskell.Chess               (Color (..), PieceType (..))
 
-data RawTag = RawTag 
-    { tagName  :: String
-    , tagValue :: String 
-    }
+data RawTag = RawTag
+  { tagName  :: String
+  , tagValue :: String
+  }
 
 data RawMove
-    = BaseRawMove
-    { figureType    :: FigureType
-    , rawExtraCoord :: RawExtraCoord
-    , wasCapture    :: Bool
-    , rawPosition   :: RawPosition
-    , turnIntoType  :: Maybe FigureType
-    , wasCheck      :: Bool
-    , wasMate       :: Bool
-    } 
-    | ShortCastling
-    { wasCheck     :: Bool
-    , wasMate      :: Bool
-    } 
-    | LongCastling
-    { wasCheck     :: Bool
-    , wasMate      :: Bool
-    }
+  = BaseRawMove
+  { pieceType    :: PieceType
+  , rawExtraCoord :: RawExtraCoord
+  , wasCapture    :: Bool
+  , rawPosition   :: RawPosition
+  , turnIntoType  :: Maybe PieceType
+  , wasCheck      :: Bool
+  , wasMate       :: Bool
+  }
+  | ShortCastling
+  { wasCheck     :: Bool
+  , wasMate      :: Bool
+  }
+  | LongCastling
+  { wasCheck     :: Bool
+  , wasMate      :: Bool
+  }
 
 data RawGame = RawGame
-    { rawTags   :: [RawTag]
-    , rawMoves  :: [RawMove]
-    , rawWinner :: Maybe Color
-    }
+  { rawTags   :: [RawTag]
+  , rawMoves  :: [RawMove]
+  , rawWinner :: Maybe Color
+  }
 
 newtype X = X Char
 newtype Y = Y Int
@@ -53,30 +53,30 @@ type RawPosition = (X, Y)
 
 rawTagParser :: Parser RawTag
 rawTagParser = do
-    char '['
-    tagName <- many letter
-    spaces
-    tagValueWithQuotes <- many $ noneOf "]"
-    let tagValue = init $ tail tagValueWithQuotes
-    char ']'
-    return RawTag
-        { tagName  = tagName
-        , tagValue = tagValue
-        }
+  char '['
+  tagName <- many letter
+  spaces
+  tagValueWithQuotes <- many $ noneOf "]"
+  let tagValue = init $ tail tagValueWithQuotes
+  char ']'
+  return RawTag
+    { tagName  = tagName
+    , tagValue = tagValue
+    }
 
 numberParser :: Parser Int
 numberParser = read <$> many digit
 
-figureTypePawnExParser :: Parser FigureType
-figureTypePawnExParser = 
-        King   <$ char 'K'
-    <|> Queen  <$ char 'Q'
-    <|> Bishop <$ char 'B'
-    <|> Knight <$ char 'N'
-    <|> Rook   <$ char 'R'
+pieceTypePawnExParser :: Parser PieceType
+pieceTypePawnExParser =
+      King   <$ char 'K'
+  <|> Queen  <$ char 'Q'
+  <|> Bishop <$ char 'B'
+  <|> Knight <$ char 'N'
+  <|> Rook   <$ char 'R'
 
-figureTypeParser :: Parser FigureType
-figureTypeParser = figureTypePawnExParser <|> pure Pawn
+pieceTypeParser :: Parser PieceType
+pieceTypeParser = pieceTypePawnExParser <|> pure Pawn
 
 xParser :: Parser X
 xParser = X <$> oneOf "abcdefgh"
@@ -86,114 +86,114 @@ yParser = Y . digitToInt <$> oneOf "12345678"
 
 rawExtraCoordParser :: Parser (Maybe (Either X Y))
 rawExtraCoordParser =      
-        Just . Left  <$> xParser
-    <|> Just . Right <$> yParser
-    <|> pure Nothing
+      Just . Left  <$> xParser
+  <|> Just . Right <$> yParser
+  <|> pure Nothing
 
 wasCaptureParser :: Parser Bool
 wasCaptureParser = 
-    True <$ char 'x'
-    <|> pure False
+  True <$ char 'x'
+  <|> pure False
 
 rawPositionParser :: Parser RawPosition
 rawPositionParser = do
-    x <- xParser
-    y <- yParser
-    return (x, y)
+  x <- xParser
+  y <- yParser
+  return (x, y)
 
-turnIntoTypeParser :: Parser (Maybe FigureType)
+turnIntoTypeParser :: Parser (Maybe PieceType)
 turnIntoTypeParser = 
-        Just <$> (char '=' *> figureTypePawnExParser)
-    <|> Just <$> figureTypePawnExParser
-    <|> pure Nothing
+      Just <$> (char '=' *> pieceTypePawnExParser)
+  <|> Just <$> pieceTypePawnExParser
+  <|> pure Nothing
 
 mainPartOfBaseRawMoveParser :: Parser (RawExtraCoord, Bool, RawPosition)
 mainPartOfBaseRawMoveParser = try case1 <|> case2
-    where 
-        case1 = do
-            rawExtraCoord <- rawExtraCoordParser
-            wasCapture    <- wasCaptureParser
-            rawPosition   <- rawPositionParser
-            return (rawExtraCoord, wasCapture, rawPosition)
-        case2 = do
-            wasCapture  <- wasCaptureParser
-            rawPosition <- rawPositionParser
-            return (Nothing, wasCapture, rawPosition)
+  where
+    case1 = do
+      rawExtraCoord <- rawExtraCoordParser
+      wasCapture    <- wasCaptureParser
+      rawPosition   <- rawPositionParser
+      return (rawExtraCoord, wasCapture, rawPosition)
+    case2 = do
+      wasCapture  <- wasCaptureParser
+      rawPosition <- rawPositionParser
+      return (Nothing, wasCapture, rawPosition)
 
 wasCheckParser :: Parser Bool
 wasCheckParser = 
-    True <$ char '+' 
-    <|> pure False
+  True <$ char '+'
+  <|> pure False
 
 wasMateParser :: Parser Bool
 wasMateParser = 
-    True <$ char '#'
-    <|> pure False
+  True <$ char '#'
+  <|> pure False
 
 baseRawMoveParser :: Parser RawMove
 baseRawMoveParser = do
-    figureType                               <- figureTypeParser
-    (rawExtraCoord, wasCapture, rawPosition) <- mainPartOfBaseRawMoveParser
-    turnIntoType                             <- turnIntoTypeParser
-    wasCheck                                 <- wasCheckParser
-    wasMate                                  <- wasMateParser
-    return BaseRawMove 
-        { figureType    = figureType
-        , rawExtraCoord = rawExtraCoord
-        , wasCapture    = wasCapture
-        , rawPosition   = rawPosition
-        , turnIntoType  = turnIntoType
-        , wasCheck      = wasCheck
-        , wasMate       = wasMate
-        }
+  pieceType                                <- pieceTypeParser
+  (rawExtraCoord, wasCapture, rawPosition) <- mainPartOfBaseRawMoveParser
+  turnIntoType                             <- turnIntoTypeParser
+  wasCheck                                 <- wasCheckParser
+  wasMate                                  <- wasMateParser
+  return BaseRawMove
+    { pieceType    = pieceType
+    , rawExtraCoord = rawExtraCoord
+    , wasCapture    = wasCapture
+    , rawPosition   = rawPosition
+    , turnIntoType  = turnIntoType
+    , wasCheck      = wasCheck
+    , wasMate       = wasMate
+    }
 
 shortCastlingParser :: Parser RawMove
 shortCastlingParser = do 
-    string "O-O"
-    wasCheck <- wasCheckParser
-    wasMate  <- wasMateParser
-    return ShortCastling
-        { wasCheck = wasCheck
-        , wasMate  = wasMate
-        }
+  string "O-O"
+  wasCheck <- wasCheckParser
+  wasMate  <- wasMateParser
+  return ShortCastling
+    { wasCheck = wasCheck
+    , wasMate  = wasMate
+    }
 
 longCastlingParser :: Parser RawMove
 longCastlingParser = do 
-    string "O-O-O"
-    wasCheck <- wasCheckParser
-    wasMate  <- wasMateParser
-    return LongCastling
-        { wasCheck = wasCheck
-        , wasMate  = wasMate
-        }
+  string "O-O-O"
+  wasCheck <- wasCheckParser
+  wasMate  <- wasMateParser
+  return LongCastling
+    { wasCheck = wasCheck
+    , wasMate  = wasMate
+    }
 
 rawMoveParser :: Parser RawMove
 rawMoveParser = 
-    baseRawMoveParser 
-    <|> try longCastlingParser
-    <|> shortCastlingParser
+  baseRawMoveParser
+  <|> try longCastlingParser
+  <|> shortCastlingParser
 
 rawMovesParser :: Parser [RawMove]
 rawMovesParser = many $
-    try (numberParser *> char '.' *> spaces *> rawMoveParser <* spaces)
-    <|> rawMoveParser <* spaces
+  try (numberParser *> char '.' *> spaces *> rawMoveParser <* spaces)
+  <|> rawMoveParser <* spaces
 
 rawWinnerParser :: Parser (Maybe Color)
 rawWinnerParser = 
-    try (Just <$> (White <$ string "1-0"))
-    <|>  Just <$> (Black <$ string "0-1")
-    <|>  Nothing <$ string "1/2-1/2"
+  try (Just <$> (White <$ string "1-0"))
+  <|>  Just <$> (Black <$ string "0-1")
+  <|>  Nothing <$ string "1/2-1/2"
 
 rawGameParser :: Parser RawGame
 rawGameParser = do
-    rawTags   <- many $ rawTagParser <* spaces
-    rawMoves  <- rawMovesParser
-    rawWinner <- rawWinnerParser
-    return RawGame
-        { rawTags   = rawTags
-        , rawMoves  = rawMoves 
-        , rawWinner = rawWinner
-        }
+  rawTags   <- many $ rawTagParser <* spaces
+  rawMoves  <- rawMovesParser
+  rawWinner <- rawWinnerParser
+  return RawGame
+    { rawTags   = rawTags
+    , rawMoves  = rawMoves
+    , rawWinner = rawWinner
+    }
 
 rawGamesParser :: Parser [RawGame]
 rawGamesParser = many $ rawGameParser <* spaces
