@@ -16,8 +16,8 @@ import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, 
 import Chesskell.Chess               (Color (..), PieceType (..))
 
 data RawTag = RawTag
-  { tagName  :: String
-  , tagValue :: String
+  { rawTagName  :: String
+  , rawTagValue :: String
   }
 
 data RawMove
@@ -54,14 +54,14 @@ type RawPosition = (X, Y)
 rawTagParser :: Parser RawTag
 rawTagParser = do
   char '['
-  tagName <- many letter
+  tagName            <- many letter
   spaces
   tagValueWithQuotes <- many $ noneOf "]"
-  let tagValue = init $ tail tagValueWithQuotes
+  let tagValue       = init $ tail tagValueWithQuotes
   char ']'
   return RawTag
-    { tagName  = tagName
-    , tagValue = tagValue
+    { rawTagName  = tagName
+    , rawTagValue = tagValue
     }
 
 numberParser :: Parser Int

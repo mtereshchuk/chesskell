@@ -1,23 +1,26 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
-module Chesskell.Preprocessor 
+module Chesskell.Preprocessor
   ( preprocessRawGames
   ) where
 
-import           Prelude hiding        (round)
-import           Data.Char             (ord)
-import           Data.List             (find)
-import           Data.Maybe            (fromJust, isNothing, isJust)
-import           Control.Lens          (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
-import           Data.Map.Strict       (Map)
-import qualified Data.Map.Strict       as Map
-import qualified Data.Matrix           as Matrix
-import           Chesskell.Chess       (Color (..), PieceType(..), Piece, Position, Arrangement, 
-                                       chessBoardLength, oppositeColor, initialArrangement)
-import           Chesskell.Game hiding (arrangement)
-import           Chesskell.PGNParser   (RawTag (..), RawMove (..), RawGame (..), 
-                                       X (..), Y (..), RawExtraCoord, RawPosition)                        
+import           Prelude hiding           (round)
+import           Data.Char                (ord)
+import           Data.List                (find)
+import           Data.Maybe               (fromJust, isNothing, isJust)
+import           Data.Vector              (Vector)
+import qualified Data.Vector              as Vector
+import qualified Data.Matrix              as Matrix
+import qualified Data.Set                 as Set
+import           Data.Map.Strict          (Map)
+import qualified Data.Map.Strict          as Map
+import           Control.Lens             (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
+import           Chesskell.Chess          (Color (..), PieceType(..), Piece, Position, Arrangement,
+                                          boardLength, oppositeColor, initialArrangement)
+import           Chesskell.Commons hiding (pieceToPosMap)
+import           Chesskell.PGNParser      (RawTag (..), RawMove (..), RawGame (..),
+                                          X (..), Y (..), RawExtraCoord, RawPosition)
 
 data GameState = GameState
   { _arrangement   :: Arrangement
@@ -30,18 +33,11 @@ type PieceAndPos = (Piece, Position)
 
 makeLenses ''GameState
 
-calcTags :: [RawTag] -> Tags
+calcTags :: [RawTag] -> [Tag]
 calcTags rawTags = 
-  let findTagValue name = tagValue <$> find (\t -> tagName t == name) rawTags
-  in Tags
-    { event  = findTagValue "Event"
-    , site   = findTagValue "Site"
-    , date   = findTagValue "Date"
-    , round  = findTagValue "Round"
-    , whiteP = findTagValue "White"
-    , blackP = findTagValue "Black"
-    , result = findTagValue "Result"
-    }
+  let isSupportedTag (RawTag name _) = Set.member name supportedTagNames
+      toTag (RawTag name value)      = Tag name value 
+  in map toTag $ filter isSupportedTag rawTags
 
 calcI :: Y -> Int
 calcI (Y digit) = 8 - digit + 1
@@ -105,16 +101,16 @@ calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
     extraCoordPred = getExtraCoordPred extraCoord
     validToPosPred = case pieceType of
       King   -> const True
+      Queen  -> \fromPos@(i, j) -> (i == ii || j == jj || abs (i - ii) == abs (jj - j))
+        && betweenPosLineIsClean fromPos toPos True (gameState^.arrangement)
+      Bishop -> \fromPos@(i, j) -> abs (i - ii) == abs (jj - j)
+        && betweenPosLineIsClean fromPos toPos False (gameState^.arrangement)
       Knight -> \(i, j) ->
         let dist = (abs $ ii - i, abs $ jj - j)
         in dist == (1, 2) || dist == (2, 1)
-      Pawn   -> \fromPos -> validToPosPawnPred fromPos toPos color gameState
-      Queen  -> \fromPos@(i, j) -> (i == ii || j == jj || abs (i - ii) == abs (jj - j))
+      Rook   -> \fromPos@(i, j) -> (i == ii || j == jj)
         && betweenPosLineIsClean fromPos toPos True (gameState^.arrangement)
-      Rook -> \fromPos@(i, j) -> (i == ii || j == jj || abs (i - ii) == abs (jj - j))
-        && betweenPosLineIsClean fromPos toPos True (gameState^.arrangement)    
-      Bishop -> \fromPos@(i, j) -> abs (i - ii) == abs (jj - j)
-        && betweenPosLineIsClean fromPos toPos False (gameState^.arrangement)
+      _      -> \fromPos -> validToPosPawnPred fromPos toPos color gameState
 
 removeCaptured :: PieceAndPos -> GameState -> GameState
 removeCaptured (captured, capturedPos) gameState = 
@@ -169,9 +165,10 @@ updatePawnTurn (pawn, pawnPos) piece gameState =
   let updatedArgm   = arrangement %~ replacePiece $ gameState
       updatedTurned = pieceToPosMap %~ (addPiecePos . removePawnPos) $ updatedArgm
   in updatedTurned
-  where replacePiece  = Matrix.setElem (Just piece) pawnPos
-        removePawnPos = Map.adjust (filter (/= pawnPos)) pawn
-        addPiecePos   = Map.adjust (pawnPos :) piece
+  where
+    replacePiece  = Matrix.setElem (Just piece) pawnPos
+    removePawnPos = Map.adjust (filter (/= pawnPos)) pawn
+    addPiecePos   = Map.adjust (pawnPos :) piece
 
 makeMoveCastling :: PieceAndPos -> PieceAndPos -> Position -> Position -> GameState -> GameState
 makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState = 
@@ -188,12 +185,11 @@ makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gam
 
 calcNextGameState :: RawMove -> Color -> GameState -> (GameState, Position, Position)
 calcNextGameState (BaseRawMove pieceType rawExtraCoord wasCapture rawPosition turnIntoType _ _) color gameState =
-  let
-    captureUpdate   = getCaptureUpdate piece toPos wasCapture
-    enPassantUpdate = getEnPassantUpdate (piece, fromPos) toPos
-    moveUpdate      = makeMoveBase (piece, fromPos) toPos
-    pawnTurnUpdate  = getPawnTurnUpdate (piece, toPos) turnIntoType
-    nextGameState   = (pawnTurnUpdate . moveUpdate . enPassantUpdate . captureUpdate) gameState
+  let captureUpdate   = getCaptureUpdate piece toPos wasCapture
+      enPassantUpdate = getEnPassantUpdate (piece, fromPos) toPos
+      moveUpdate      = makeMoveBase (piece, fromPos) toPos
+      pawnTurnUpdate  = getPawnTurnUpdate (piece, toPos) turnIntoType
+      nextGameState   = (pawnTurnUpdate . moveUpdate . enPassantUpdate . captureUpdate) gameState
   in (nextGameState, fromPos, toPos)
   where
     piece          = (color, pieceType)
@@ -218,18 +214,17 @@ calcNextGameState castling color gameState =
       ShortCastling _ _ -> (colorCoord, 6)
       _                 -> (colorCoord, 4)
 
-calcMovesHelper :: [RawMove] -> [Move] -> Color -> GameState -> [Move]
-calcMovesHelper [] moves _ gameState = moves
+calcMovesHelper :: [RawMove] -> [Move] -> Color -> GameState -> Vector Move
+calcMovesHelper [] moves _ gameState = Vector.fromList $ reverse moves
 calcMovesHelper (rm : rms) moves prevColor prevGameState = 
-  let
-    color                       = oppositeColor prevColor
-    (gameState, fromPos, toPos) = calcNextGameState rm color prevGameState
-    newMove                     = Move (gameState^.arrangement) fromPos toPos
-  in calcMovesHelper rms (moves ++ [newMove]) color gameState
+  let color                       = oppositeColor prevColor
+      (gameState, fromPos, toPos) = calcNextGameState rm color prevGameState
+      newMove                     = Move (gameState^.pieceToPosMap) fromPos toPos
+  in calcMovesHelper rms (newMove : moves) color gameState
 
 initialPieceToPosMap :: Map Piece [Position]
 initialPieceToPosMap =
-  let pieceAndPosList = foldMap toPieceAndPos [(x, y) | x <- [1..chessBoardLength], y <- [1..chessBoardLength]]
+  let pieceAndPosList = foldMap toPieceAndPos [(x, y) | x <- [1..boardLength], y <- [1..boardLength]]
   in Map.fromListWith (++) pieceAndPosList
   where
     toPieceAndPos pos =
@@ -237,7 +232,7 @@ initialPieceToPosMap =
       Nothing      -> []
       (Just piece) -> [(piece, [pos])]
 
-calcMoves :: [RawMove] -> [Move]
+calcMoves :: [RawMove] -> Vector Move
 calcMoves rawMoves = calcMovesHelper rawMoves [] Black initialGameState
   where
     initialGameState = GameState
@@ -246,11 +241,11 @@ calcMoves rawMoves = calcMovesHelper rawMoves [] Black initialGameState
       , _enPassantOp   = Nothing
       }
 
-preprocessRawGames :: [RawGame] -> [Game]
-preprocessRawGames = map preprocessRawGame
+preprocessRawGames :: [RawGame] -> Vector Game
+preprocessRawGames = Vector.fromList . map preprocessRawGame
   where
     preprocessRawGame rawGame = Game
-      { tags         = calcTags  $ rawTags rawGame
-      , arrangements = calcMoves $ rawMoves rawGame
-      , winner       = rawWinner rawGame
+      { tags   = calcTags  $ rawTags rawGame
+      , moves  = calcMoves $ rawMoves rawGame
+      , winner = rawWinner rawGame
       }

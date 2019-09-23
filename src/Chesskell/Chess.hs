@@ -5,7 +5,7 @@ module Chesskell.Chess
   , Position
   , Place
   , Arrangement
-  , chessBoardLength
+  , boardLength
   , oppositeColor
   , getAllPieces
   , initialArrangement
@@ -27,8 +27,8 @@ type Position = (Int, Int)
 type Place = Maybe Piece
 type Arrangement = Matrix Place
 
-chessBoardLength :: Int
-chessBoardLength = 8
+boardLength :: Int
+boardLength = 8
 
 oppositeColor :: Color -> Color
 oppositeColor White = Black
@@ -41,12 +41,12 @@ initialArrangement :: Arrangement
 initialArrangement = Matrix.fromLists $
      [toBlack <$> mainPieceRow]
   ++ [toBlack <$> pawnRow]
-  ++ replicate (chessBoardLength - 4) emptyRaw
+  ++ replicate (boardLength - 4) emptyRaw
   ++ [toWhite <$> pawnRow]
   ++ [toWhite <$> mainPieceRow]
     where
       mainPieceRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
-      pawnRow      = replicate chessBoardLength Pawn
-      emptyRaw     = replicate chessBoardLength Nothing
+      pawnRow      = replicate boardLength Pawn
+      emptyRaw     = replicate boardLength Nothing
       toBlack      = Just . (,) Black
       toWhite      = Just . (,) White
