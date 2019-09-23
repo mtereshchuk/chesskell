@@ -183,14 +183,14 @@ makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gam
     updateKing       = Map.adjust ((kingToPos :) . filter (/= kingFromPos)) king
     updateRook       = Map.adjust ((rookToPos :) . filter (/= rookFromPos)) rook
 
-calcNextGameState :: RawMove -> Color -> GameState -> (GameState, Position, Position)
+calcNextGameState :: RawMove -> Color -> GameState -> (Position, Position, GameState)
 calcNextGameState (BaseRawMove pieceType rawExtraCoord wasCapture rawPosition turnIntoType _ _) color gameState =
   let captureUpdate   = getCaptureUpdate piece toPos wasCapture
       enPassantUpdate = getEnPassantUpdate (piece, fromPos) toPos
       moveUpdate      = makeMoveBase (piece, fromPos) toPos
       pawnTurnUpdate  = getPawnTurnUpdate (piece, toPos) turnIntoType
       nextGameState   = (pawnTurnUpdate . moveUpdate . enPassantUpdate . captureUpdate) gameState
-  in (nextGameState, fromPos, toPos)
+  in (fromPos, toPos, nextGameState)
   where
     piece          = (color, pieceType)
     extraCoord     = calcExtraCoord rawExtraCoord
@@ -198,7 +198,7 @@ calcNextGameState (BaseRawMove pieceType rawExtraCoord wasCapture rawPosition tu
     fromPos@(i, j) = calcFromPos piece extraCoord toPos gameState
 calcNextGameState castling color gameState =
   let nextGameState = makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState
-  in (nextGameState, kingFromPos, kingToPos)
+  in (kingFromPos, kingToPos, nextGameState)
   where
     colorCoord  = if color == White then 8 else 1
     king        = (color, King)
@@ -218,8 +218,8 @@ calcMovesHelper :: [RawMove] -> [Move] -> Color -> GameState -> Vector Move
 calcMovesHelper [] moves _ gameState = Vector.fromList $ reverse moves
 calcMovesHelper (rm : rms) moves prevColor prevGameState = 
   let color                       = oppositeColor prevColor
-      (gameState, fromPos, toPos) = calcNextGameState rm color prevGameState
-      newMove                     = Move (gameState^.pieceToPosMap) fromPos toPos
+      (fromPos, toPos, gameState) = calcNextGameState rm color prevGameState
+      newMove                     = Move fromPos toPos (gameState^.pieceToPosMap) 
   in calcMovesHelper rms (newMove : moves) color gameState
 
 initialPieceToPosMap :: Map Piece [Position]

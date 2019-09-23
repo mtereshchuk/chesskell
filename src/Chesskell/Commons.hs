@@ -19,9 +19,9 @@ data Tag = Tag
   }
 
 data Move = Move
-  { pieceToPosMap :: Map Piece [Position]
-  , fromPos       :: Position
+  { fromPos       :: Position
   , toPos         :: Position
+  , pieceToPosMap :: Map Piece [Position]
   }
 
 data Game = Game

@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Chesskell.View
  ( chesskellDisplay
  , getStaticPic
@@ -5,14 +7,13 @@ module Chesskell.View
  , stateToPic
  ) where
 
-import Data.List (intercalate)
-import Data.Map as Map (Map)
+import           Data.List (intercalate)
+import           Data.Map as Map (Map)
 import qualified Data.Map as Map
---import qualified Graphics.Gloss as Gloss
 import qualified Data.Vector as Vector
-import Graphics.Gloss
-import Chesskell.Commons hiding (round)
-import Chesskell.Chess hiding (Color)
+import           Graphics.Gloss
+import           Chesskell.Commons (Tag (..), Move (..), Game (..), State (..))
+import           Chesskell.Chess (Piece, Position, boardLength, getAllPieces)
 
 viewScale :: Float
 viewScale = 60.0
@@ -32,32 +33,39 @@ constructSquare width sqColor xShift yShift =
   $ color sqColor
   $ rectangleSolid width width
 
-fieldToPic :: Position -> Picture
-fieldToPic (i, j) =
-  let fieldColor = if even $ i + j
-        then whiteFieldColor
-        else blackFieldColor
-      xShift     = fromIntegral j * baseXShift - baseYShift
-      yShift     = fromIntegral i * (-baseXShift) + baseYShift
-  in constructSquare fieldWidth fieldColor xShift yShift
-  where
-    fieldWidth      = viewScale
-    whiteFieldColor = white
-    blackFieldColor = greyN 0.3
-    baseXShift      = fieldWidth
-    baseYShift      = fieldWidth * 4.5
-
 boardXShift :: Float
 boardXShift = viewScale * (-2.0)
 
 boardYShift :: Float
 boardYShift = 0.0
 
+getPosShifts :: Position -> (Float, Float)
+getPosShifts (i, j) =
+  let xShift = fromIntegral j * baseXShift - baseYShift + boardXShift
+      yShift = fromIntegral i * (-baseXShift) + baseYShift + boardYShift
+  in (xShift, yShift)
+  where 
+    baseXShift = viewScale
+    baseYShift = viewScale * 4.5
+
+fieldToPic :: Position -> Picture
+fieldToPic pos@(i, j) =
+  let fieldColor       = 
+        if even $ i + j
+        then whiteFieldColor
+        else blackFieldColor
+      (xShift, yShift) = getPosShifts pos
+  in constructSquare fieldWidth fieldColor xShift yShift
+  where
+    fieldWidth      = viewScale
+    whiteFieldColor = white
+    blackFieldColor = greyN 0.3
+
 getBoardPic :: Picture
 getBoardPic =
-  let boardBack = constructSquare boardBackWidth boardBackColor 0.0 0.0
+  let boardBack = translate boardXShift boardYShift $ constructSquare boardBackWidth boardBackColor 0.0 0.0
       fieldsPic = pictures $ map fieldToPic [(i, j) | i <- [1..boardLength], j <- [1..boardLength]]
-  in translate boardXShift boardYShift $ pictures [boardBack, fieldsPic]
+  in pictures [boardBack, fieldsPic]
   where
     boardBackWidth = (viewScale * fromIntegral boardLength) * 1.025
     boardBackColor = black
@@ -126,8 +134,31 @@ getInfoPic tags =
     xShift       = viewScale * 2.55
     yShift       = viewScale * 2.5
 
+getMovePositionsPic :: Position -> Position -> Picture
+getMovePositionsPic fromPos toPos = 
+  let posToPic pos posColor = translate boardYShift boardYShift $ color posColor $ fieldToPic pos 
+      fromPosPic            = posToPic fromPos fromPosColor 
+      toPosPic              = posToPic toPos toPosColor
+  in pictures [fromPosPic, toPosPic]
+  where 
+    fromPosColor = green
+    toPosColor   = green
+
+getPiecesPic :: Map Piece Picture -> Map Piece [Position] -> Picture
+getPiecesPic pieceToPicMap pieceToPosMap =
+  let toPairList (piece, positions) = map (piece,) positions
+      pieceAndPosList               = concatMap toPairList $ Map.toList pieceToPosMap
+      pieceAndPosToPic (piece, pos) =
+        let piecePic = pieceToPicMap Map.! piece
+            (xShift, yShift) = getPosShifts pos
+        in translate xShift yShift piecePic    
+  in pictures $ map pieceAndPosToPic pieceAndPosList
+
 getArrangementPic :: Map Piece Picture -> Move -> Picture
-getArrangementPic a b = blank -- translate boardXShift boardYShift $ arrangePieces pieceToPicMap pieceToPosMap
+getArrangementPic pieceToPicMap (Move fromPos toPos pieceToPosMap) =
+  let movePositionsPic = getMovePositionsPic fromPos toPos
+      piecesPic        = getPiecesPic pieceToPicMap pieceToPosMap
+  in pictures [movePositionsPic, piecesPic]
 
 stateToPic :: State -> Picture
 stateToPic (State staticPic pieceToPicMap games gameNum moveNum) =
