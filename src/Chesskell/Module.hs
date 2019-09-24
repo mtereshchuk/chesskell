@@ -3,7 +3,7 @@ module Chesskell.Module
   ) where
 
 import           System.Environment     (getArgs)
-import           Control.Exception      (ErrorCall, try, evaluate)
+import           Control.Exception      (ArrayException, try, evaluate)
 import           Data.Vector            (Vector)
 import qualified Graphics.Gloss         as UI
 import           Chesskell.Chess        (Piece)
@@ -24,7 +24,7 @@ process = do
     case parseRes of
       (Left parseErrorReason) -> return $ Left $ parseError ++ show parseErrorReason
       (Right rawGames)  -> do
-        preprocessRes <- try $ evaluate $ preprocessRawGames rawGames :: IO (Either ErrorCall (Vector Game))
+        preprocessRes <- try $ evaluate $ preprocessRawGames rawGames :: IO (Either ArrayException (Vector Game))
         case preprocessRes of
           (Left _)      -> return $ Left invalidMove  
           (Right games) -> do

@@ -6,6 +6,7 @@ module Chesskell.Preprocessor
   ) where
 
 import           Prelude hiding               (round)
+import           Control.Exception            (ArrayException (..), throw)
 import           Data.Char                    (ord)
 import           Data.List                    (find)
 import           Data.Maybe                   (fromJust, isNothing, isJust)
@@ -76,10 +77,7 @@ getBetweenPosLine (i, j) (ii, jj) straight
         maxI = max i ii
         minJ = min j jj
         maxJ = max j jj
-        genList = [(x, y) | x <- [minI..maxI], y <- [minJ..maxJ], abs (x - i) == abs (y - j)]
-        tailed = tail genList
-        inited = init tailed
-    in inited
+    in init $ tail [(x, y) | x <- [minI..maxI], y <- [minJ..maxJ], abs (x - i) == abs (y - j)]
   where
     notDiagonal commonApp bord1 bord2 =
       let minBord = min bord1 bord2
@@ -96,7 +94,9 @@ calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
   let candidates = (gameState^.pieceToPosMap) Map.! piece
       ecFiltered = filter extraCoordPred candidates
       filtered   = filter validToPosPred ecFiltered
-  in head filtered
+  in if null filtered 
+     then throw $ IndexOutOfBounds "Incorrect move" 
+     else head filtered
   where 
     extraCoordPred = getExtraCoordPred extraCoord
     validToPosPred = case pieceType of
