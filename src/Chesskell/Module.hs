@@ -28,13 +28,14 @@ process = do
         case preprocessRes of
           (Left _)      -> return $ Left invalidMove  
           (Right games) -> do
+            staticPic     <- getStaticPic
             pieceToPicMap <- getPieceToPicMap
             return $ Right AppState
-              { _staticPic = getStaticPic
+              { _staticPic     = staticPic
               , _pieceToPicMap = pieceToPicMap
-              , _games = games
-              , _gameNum = 0
-              , _moveNum = 0
+              , _games         = games
+              , _gameNum       = 0
+              , _moveNum       = 0
               }
   where
     missingFilePath = "Missing file path"

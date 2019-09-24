@@ -18,6 +18,12 @@ import           Chesskell.Chess       (Piece, Position, boardLength, getAllPiec
 import           Chesskell.CoreCommons (Tag (..), Move (..), AppState, tags, staticPic,
                                        pieceToPicMap, getCurrentGame, getCurrentMove)
 
+imagesPathPrefix :: String
+imagesPathPrefix = "resources/images/"
+
+imageFileExtension :: String
+imageFileExtension = ".bmp"
+
 viewScale :: Float
 viewScale = 60.0
 
@@ -31,7 +37,7 @@ chesskellDisplay = UI.InWindow windowName windowSize windowPos
     windowPos  = (0, 0)
 
 backgroundColor :: UI.Color
-backgroundColor = UI.white
+backgroundColor = UI.makeColorI 255 248 230 255
 
 constructSquare :: Float -> UI.Color -> Float -> Float -> UI.Picture
 constructSquare width sqColor xShift yShift =
@@ -66,10 +72,10 @@ fieldToPic needHighlight pos@(i, j) =
   in constructSquare fieldWidth fieldColor xShift yShift
   where
     fieldWidth          = viewScale
-    whiteBaseColor      = UI.white
-    blackBaseColor      = UI.greyN 0.3
-    whiteHighlightColor = UI.green
-    blackHighlightColor = UI.green
+    whiteBaseColor      = UI.makeColorI 250 219 181 255
+    blackBaseColor      = UI.makeColorI 200 113 66 255
+    whiteHighlightColor = UI.makeColorI 99 190 46 255
+    blackHighlightColor = UI.makeColorI 95 163 41 255
 
 getBoardPic :: UI.Picture
 getBoardPic =
@@ -78,50 +84,63 @@ getBoardPic =
   in UI.pictures [boardBack, fieldsPic]
   where
     boardBackWidth = (viewScale * fromIntegral boardLength) * 1.025
-    boardBackColor = UI.black
+    boardBackColor = UI.makeColorI 110 33 39 255
 
 getInfoPlacePic :: UI.Picture
 getInfoPlacePic = constructSquare infoSquareWidth infoSquareColor xShift yShift
   where
     infoSquareWidth = viewScale * 3.5
-    infoSquareColor = UI.greyN 0.95
+    infoSquareColor = UI.makeColorI 250 219 181 120
     xShift          = viewScale * 4.3
     yShift          = viewScale * 2.35
 
 getControlPic :: UI.Picture
 getControlPic =
-  let controlPics = map UI.text [prevGame, nextGame, prevMove, nextMove]
+  let controlPics = map (UI.color controlColor . UI.text) [prevGame, nextGame, prevMove, nextMove]
       picModify i = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale controlScale controlScale $ controlPics !! i)
       controlList = [picModify i | i <- [0..length controlPics - 1]]
   in UI.translate xShift yShift $ UI.pictures controlList
   where
     nextMove     = "Next Move: Right Arrow"
     prevMove     = "Prev Move: Left Arrow"
-    nextGame     = "Next Game: Ctrl + Right Arrow"
-    prevGame     = "Prev Game: Ctrl + Left Arrow"
-    controlScale = viewScale / 605.0
+    nextGame     = "Next Game: Shift + Right Arrow"
+    prevGame     = "Prev Game: Shift + Left Arrow"
+    controlColor = UI.makeColorI 110 33 39 60
+    controlScale = viewScale / 625.0
     betweenShift = viewScale / 2.2
     xShift       = viewScale * 2.55
-    yShift       = -viewScale * 1.5
+    yShift       = -viewScale * 1.6
 
-getStaticPic :: UI.Picture
-getStaticPic = UI.pictures [getBoardPic, getInfoPlacePic, getControlPic]
+getHaskellLogoPic :: IO UI.Picture
+getHaskellLogoPic = do
+  let logoPath = imagesPathPrefix ++ logoFileName ++ imageFileExtension
+  rawLogo      <- UI.loadBMP logoPath
+  return $ UI.translate xShift yShift $ UI.scale logoScale logoScale rawLogo
+  where
+    logoFileName = "Haskell_Logo"
+    logoScale    = viewScale / 60.0
+    xShift       = viewScale * 4.2
+    yShift       =  -viewScale * 3.2
+
+getStaticPic :: IO UI.Picture
+getStaticPic = do
+  haskellLogoPic <- getHaskellLogoPic
+  return $ UI.pictures [getBoardPic, getInfoPlacePic, getControlPic, haskellLogoPic]
 
 getPieceBMPPath :: Piece -> FilePath
 getPieceBMPPath (color, pieceType) =
-  let commonPrefix  = "resources/images/"
-      colorName     = show color
-      separator     = "_"
+  let colorName     = show color
       pieceTypeName = show pieceType
-      fileExtension = ".bmp"
-  in concat [commonPrefix, colorName, separator, pieceTypeName, fileExtension]
+  in concat [imagesPathPrefix, colorName, separator, pieceTypeName, imageFileExtension]
+  where
+    separator = "_"
 
 pieceToPic :: Piece -> IO UI.Picture
 pieceToPic piece = do
   piecePic <- UI.loadBMP $ getPieceBMPPath piece
   return $ UI.scale pieceScale pieceScale piecePic
   where
-    pieceScale = viewScale * 0.0015
+    pieceScale = viewScale / 60.0
 
 getPieceToPicMap :: IO (Map Piece UI.Picture)
 getPieceToPicMap = do
@@ -136,12 +155,12 @@ getInfoPic tags =
   let mergedTags  = map (\(Tag name value) -> name ++ ": " ++ value) tags
       tagPics     = map UI.text mergedTags
       picModify i = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale tagsScale tagsScale $ tagPics !! i)
-      tagList     = [picModify i | i <- [0..length tagPics - 1]] -- copypaste
+      tagList     = [picModify i | i <- [0..length tagPics - 1]]
   in UI.translate xShift yShift $ UI.pictures tagList
   where
-    tagsScale    = viewScale / 625.0
+    tagsScale    = viewScale / 685.0
     betweenShift = -viewScale / 2.2
-    xShift       = viewScale * 2.55
+    xShift       = viewScale * 2.65
     yShift       = viewScale * 3.6
 
 getMovePositionsPic :: Position -> Position -> UI.Picture
