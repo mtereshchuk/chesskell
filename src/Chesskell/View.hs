@@ -2,6 +2,7 @@
 
 module Chesskell.View
  ( chesskellDisplay
+ , backgroundColor
  , getStaticPic
  , getPieceToPicMap
  , appStateToPic
@@ -14,8 +15,8 @@ import qualified Data.Vector           as Vector
 import           Control.Lens          ((^.))
 import qualified Graphics.Gloss        as UI
 import           Chesskell.Chess       (Piece, Position, boardLength, getAllPieces)
-import           Chesskell.CoreCommons (Tag (..), Move (..), Game (..), AppState, 
-                                       staticPic, pieceToPicMap, getCurrentGame, getCurrentMove)
+import           Chesskell.CoreCommons (Tag (..), Move (..), AppState, tags, staticPic,
+                                       pieceToPicMap, getCurrentGame, getCurrentMove)
 
 viewScale :: Float
 viewScale = 60.0
@@ -116,7 +117,7 @@ pieceToPic piece = do
   piecePic <- UI.loadBMP $ getPieceBMPPath piece
   return $ UI.scale pieceScale pieceScale piecePic
   where
-    pieceScale = viewScale * 0.15
+    pieceScale = viewScale * 0.0015
 
 getPieceToPicMap :: IO (Map Piece UI.Picture)
 getPieceToPicMap = do
@@ -134,20 +135,20 @@ getInfoPic tags =
       tagList     = [picModify i | i <- [0..length tagPics - 1]] -- copypaste
   in UI.translate xShift yShift $ UI.pictures tagList
   where
-    tagsScale    = viewScale / 605.0
-    betweenShift = viewScale / 2.2
+    tagsScale    = viewScale / 625.0
+    betweenShift = -viewScale / 2.2
     xShift       = viewScale * 2.55
-    yShift       = viewScale * 2.5
+    yShift       = viewScale * 3.6
 
 getMovePositionsPic :: Position -> Position -> UI.Picture
 getMovePositionsPic fromPos toPos =
-  let posToPic pos posColor = UI.translate boardYShift boardYShift $ UI.color posColor $ fieldToPic pos
+  let posToPic pos posColor = UI.color posColor $ fieldToPic pos
       fromPosPic            = posToPic fromPos fromPosColor
       toPosPic              = posToPic toPos toPosColor
   in UI.pictures [fromPosPic, toPosPic]
   where
-    fromPosColor = UI.green
-    toPosColor   = UI.green
+    fromPosColor = UI.red
+    toPosColor   = UI.red
 
 getPiecesPic :: Map Piece UI.Picture -> Map Piece [Position] -> UI.Picture
 getPiecesPic pieceToPicMap pieceToPosMap =
