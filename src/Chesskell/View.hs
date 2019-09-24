@@ -54,23 +54,27 @@ getPosShifts (i, j) =
     baseXShift = viewScale
     baseYShift = viewScale * 4.5
 
-fieldToPic :: Position -> UI.Picture
-fieldToPic pos@(i, j) =
-  let fieldColor       =
-        if even $ i + j
-        then whiteFieldColor
-        else blackFieldColor
+fieldToPic :: Bool -> Position -> UI.Picture
+fieldToPic needHighlight pos@(i, j) =
+  let isOddField       = odd $ i + j
+      fieldColor       = case (needHighlight, isOddField) of
+        (False, False) -> whiteBaseColor
+        (False, True)  -> blackBaseColor
+        (True, False)  -> whiteHighlightColor
+        (True, True)   -> blackHighlightColor
       (xShift, yShift) = getPosShifts pos
   in constructSquare fieldWidth fieldColor xShift yShift
   where
-    fieldWidth      = viewScale
-    whiteFieldColor = UI.white
-    blackFieldColor = UI.greyN 0.3
+    fieldWidth          = viewScale
+    whiteBaseColor      = UI.white
+    blackBaseColor      = UI.greyN 0.3
+    whiteHighlightColor = UI.green
+    blackHighlightColor = UI.green
 
 getBoardPic :: UI.Picture
 getBoardPic =
   let boardBack = UI.translate boardXShift boardYShift $ constructSquare boardBackWidth boardBackColor 0.0 0.0
-      fieldsPic = UI.pictures $ map fieldToPic [(i, j) | i <- [1..boardLength], j <- [1..boardLength]]
+      fieldsPic = UI.pictures $ map (fieldToPic False) [(i, j) | i <- [1..boardLength], j <- [1..boardLength]]
   in UI.pictures [boardBack, fieldsPic]
   where
     boardBackWidth = (viewScale * fromIntegral boardLength) * 1.025
@@ -142,13 +146,10 @@ getInfoPic tags =
 
 getMovePositionsPic :: Position -> Position -> UI.Picture
 getMovePositionsPic fromPos toPos =
-  let posToPic pos posColor = UI.color posColor $ fieldToPic pos
-      fromPosPic            = posToPic fromPos fromPosColor
-      toPosPic              = posToPic toPos toPosColor
+  let posToPic   = fieldToPic True 
+      fromPosPic = posToPic fromPos
+      toPosPic   = posToPic toPos
   in UI.pictures [fromPosPic, toPosPic]
-  where
-    fromPosColor = UI.red
-    toPosColor   = UI.red
 
 getPiecesPic :: Map Piece UI.Picture -> Map Piece [Position] -> UI.Picture
 getPiecesPic pieceToPicMap pieceToPosMap =
