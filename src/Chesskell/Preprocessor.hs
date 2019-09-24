@@ -1,26 +1,26 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Chesskell.Preprocessor
   ( preprocessRawGames
   ) where
 
-import           Prelude hiding           (round)
-import           Data.Char                (ord)
-import           Data.List                (find)
-import           Data.Maybe               (fromJust, isNothing, isJust)
-import           Data.Vector              (Vector)
-import qualified Data.Vector              as Vector
-import qualified Data.Matrix              as Matrix
-import qualified Data.Set                 as Set
-import           Data.Map.Strict          (Map)
-import qualified Data.Map.Strict          as Map
-import           Control.Lens             (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
-import           Chesskell.Chess          (Color (..), PieceType(..), Piece, Position, Arrangement,
-                                          boardLength, oppositeColor, initialArrangement)
-import           Chesskell.Commons hiding (pieceToPosMap)
-import           Chesskell.PGNParser      (RawTag (..), RawMove (..), RawGame (..),
-                                          X (..), Y (..), RawExtraCoord, RawPosition)
+import           Prelude hiding               (round)
+import           Data.Char                    (ord)
+import           Data.List                    (find)
+import           Data.Maybe                   (fromJust, isNothing, isJust)
+import           Data.Vector                  (Vector)
+import qualified Data.Vector                  as Vector
+import qualified Data.Matrix                  as Matrix
+import qualified Data.Set                     as Set
+import           Data.Map.Strict              (Map)
+import qualified Data.Map.Strict              as Map
+import           Control.Lens                 (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
+import           Chesskell.Chess              (Color (..), PieceType(..), Piece, Position, Arrangement,
+                                              boardLength, oppositeColor, initialArrangement)
+import           Chesskell.CoreCommons hiding (pieceToPosMap)
+import           Chesskell.PGNParser          (RawTag (..), RawMove (..), RawGame (..),
+                                              X (..), Y (..), RawExtraCoord, RawPosition)
 
 data GameState = GameState
   { _arrangement   :: Arrangement

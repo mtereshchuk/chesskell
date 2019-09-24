@@ -4,22 +4,24 @@ module Chesskell.View
  ( chesskellDisplay
  , getStaticPic
  , getPieceToPicMap
- , stateToPic
+ , appStateToPic
  ) where
 
-import           Data.List (intercalate)
-import           Data.Map as Map (Map)
-import qualified Data.Map as Map
-import qualified Data.Vector as Vector
-import           Graphics.Gloss
-import           Chesskell.Commons (Tag (..), Move (..), Game (..), State (..))
-import           Chesskell.Chess (Piece, Position, boardLength, getAllPieces)
+import           Data.List             (intercalate)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import qualified Data.Vector           as Vector
+import           Control.Lens          ((^.))
+import qualified Graphics.Gloss        as UI
+import           Chesskell.Chess       (Piece, Position, boardLength, getAllPieces)
+import           Chesskell.CoreCommons (Tag (..), Move (..), Game (..), AppState, 
+                                       staticPic, pieceToPicMap, getCurrentGame, getCurrentMove)
 
 viewScale :: Float
 viewScale = 60.0
 
-chesskellDisplay :: Display
-chesskellDisplay = InWindow windowName windowSize windowPos
+chesskellDisplay :: UI.Display
+chesskellDisplay = UI.InWindow windowName windowSize windowPos
   where
     windowName = "Chesskell"
     windowSize =
@@ -27,11 +29,14 @@ chesskellDisplay = InWindow windowName windowSize windowPos
       in (viewScaleInt * 13, viewScaleInt * 10)
     windowPos  = (0, 0)
 
-constructSquare :: Float -> Color -> Float -> Float -> Picture
+backgroundColor :: UI.Color
+backgroundColor = UI.white
+
+constructSquare :: Float -> UI.Color -> Float -> Float -> UI.Picture
 constructSquare width sqColor xShift yShift =
-  translate xShift yShift
-  $ color sqColor
-  $ rectangleSolid width width
+  UI.translate xShift yShift
+  $ UI.color sqColor
+  $ UI.rectangleSolid width width
 
 boardXShift :: Float
 boardXShift = viewScale * (-2.0)
@@ -44,13 +49,13 @@ getPosShifts (i, j) =
   let xShift = fromIntegral j * baseXShift - baseYShift + boardXShift
       yShift = fromIntegral i * (-baseXShift) + baseYShift + boardYShift
   in (xShift, yShift)
-  where 
+  where
     baseXShift = viewScale
     baseYShift = viewScale * 4.5
 
-fieldToPic :: Position -> Picture
+fieldToPic :: Position -> UI.Picture
 fieldToPic pos@(i, j) =
-  let fieldColor       = 
+  let fieldColor       =
         if even $ i + j
         then whiteFieldColor
         else blackFieldColor
@@ -58,32 +63,32 @@ fieldToPic pos@(i, j) =
   in constructSquare fieldWidth fieldColor xShift yShift
   where
     fieldWidth      = viewScale
-    whiteFieldColor = white
-    blackFieldColor = greyN 0.3
+    whiteFieldColor = UI.white
+    blackFieldColor = UI.greyN 0.3
 
-getBoardPic :: Picture
+getBoardPic :: UI.Picture
 getBoardPic =
-  let boardBack = translate boardXShift boardYShift $ constructSquare boardBackWidth boardBackColor 0.0 0.0
-      fieldsPic = pictures $ map fieldToPic [(i, j) | i <- [1..boardLength], j <- [1..boardLength]]
-  in pictures [boardBack, fieldsPic]
+  let boardBack = UI.translate boardXShift boardYShift $ constructSquare boardBackWidth boardBackColor 0.0 0.0
+      fieldsPic = UI.pictures $ map fieldToPic [(i, j) | i <- [1..boardLength], j <- [1..boardLength]]
+  in UI.pictures [boardBack, fieldsPic]
   where
     boardBackWidth = (viewScale * fromIntegral boardLength) * 1.025
-    boardBackColor = black
+    boardBackColor = UI.black
 
-getInfoPlacePic :: Picture
+getInfoPlacePic :: UI.Picture
 getInfoPlacePic = constructSquare infoSquareWidth infoSquareColor xShift yShift
   where
     infoSquareWidth = viewScale * 3.5
-    infoSquareColor = greyN 0.95
+    infoSquareColor = UI.greyN 0.95
     xShift          = viewScale * 4.3
     yShift          = viewScale * 2.35
 
-getControlPic :: Picture
+getControlPic :: UI.Picture
 getControlPic =
-  let controlPics = map text [prevGame, nextGame, prevMove, nextMove]
-      picModify i = translate 0.0 (betweenShift * fromIntegral i) (scale controlScale controlScale $ controlPics !! i)
+  let controlPics = map UI.text [prevGame, nextGame, prevMove, nextMove]
+      picModify i = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale controlScale controlScale $ controlPics !! i)
       controlList = [picModify i | i <- [0..length controlPics - 1]]
-  in translate xShift yShift $ pictures controlList
+  in UI.translate xShift yShift $ UI.pictures controlList
   where
     nextMove     = "Next Move: Right Arrow"
     prevMove     = "Prev Move: Left Arrow"
@@ -94,8 +99,8 @@ getControlPic =
     xShift       = viewScale * 2.55
     yShift       = -viewScale * 1.5
 
-getStaticPic :: Picture
-getStaticPic = pictures [getBoardPic, getInfoPlacePic, getControlPic]
+getStaticPic :: UI.Picture
+getStaticPic = UI.pictures [getBoardPic, getInfoPlacePic, getControlPic]
 
 getPieceBMPPath :: Piece -> FilePath
 getPieceBMPPath (color, pieceType) =
@@ -106,14 +111,14 @@ getPieceBMPPath (color, pieceType) =
       fileExtension = ".bmp"
   in concat [commonPrefix, colorName, separator, pieceTypeName, fileExtension]
 
-pieceToPic :: Piece -> IO Picture
+pieceToPic :: Piece -> IO UI.Picture
 pieceToPic piece = do
-  piecePic <- loadBMP $ getPieceBMPPath piece
-  return $ scale pieceScale pieceScale piecePic
+  piecePic <- UI.loadBMP $ getPieceBMPPath piece
+  return $ UI.scale pieceScale pieceScale piecePic
   where
     pieceScale = viewScale * 0.15
 
-getPieceToPicMap :: IO (Map Piece Picture)
+getPieceToPicMap :: IO (Map Piece UI.Picture)
 getPieceToPicMap = do
   let pieces        = getAllPieces
       piecePicsIO   = map pieceToPic pieces
@@ -121,49 +126,48 @@ getPieceToPicMap = do
   let pieceToPicMap = Map.fromList $ zip pieces piecePics
   return pieceToPicMap
 
-getInfoPic :: [Tag] -> Picture
+getInfoPic :: [Tag] -> UI.Picture
 getInfoPic tags =
   let mergedTags  = map (\(Tag name value) -> name ++ ": " ++ value) tags
-      tagPics     = map text mergedTags
-      picModify i = translate 0.0 (betweenShift * fromIntegral i) (scale tagsScale tagsScale $ tagPics !! i)
+      tagPics     = map UI.text mergedTags
+      picModify i = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale tagsScale tagsScale $ tagPics !! i)
       tagList     = [picModify i | i <- [0..length tagPics - 1]] -- copypaste
-  in translate xShift yShift $ pictures tagList
+  in UI.translate xShift yShift $ UI.pictures tagList
   where
     tagsScale    = viewScale / 605.0
     betweenShift = viewScale / 2.2
     xShift       = viewScale * 2.55
     yShift       = viewScale * 2.5
 
-getMovePositionsPic :: Position -> Position -> Picture
-getMovePositionsPic fromPos toPos = 
-  let posToPic pos posColor = translate boardYShift boardYShift $ color posColor $ fieldToPic pos 
-      fromPosPic            = posToPic fromPos fromPosColor 
+getMovePositionsPic :: Position -> Position -> UI.Picture
+getMovePositionsPic fromPos toPos =
+  let posToPic pos posColor = UI.translate boardYShift boardYShift $ UI.color posColor $ fieldToPic pos
+      fromPosPic            = posToPic fromPos fromPosColor
       toPosPic              = posToPic toPos toPosColor
-  in pictures [fromPosPic, toPosPic]
-  where 
-    fromPosColor = green
-    toPosColor   = green
+  in UI.pictures [fromPosPic, toPosPic]
+  where
+    fromPosColor = UI.green
+    toPosColor   = UI.green
 
-getPiecesPic :: Map Piece Picture -> Map Piece [Position] -> Picture
+getPiecesPic :: Map Piece UI.Picture -> Map Piece [Position] -> UI.Picture
 getPiecesPic pieceToPicMap pieceToPosMap =
   let toPairList (piece, positions) = map (piece,) positions
       pieceAndPosList               = concatMap toPairList $ Map.toList pieceToPosMap
       pieceAndPosToPic (piece, pos) =
         let piecePic = pieceToPicMap Map.! piece
             (xShift, yShift) = getPosShifts pos
-        in translate xShift yShift piecePic    
-  in pictures $ map pieceAndPosToPic pieceAndPosList
+        in UI.translate xShift yShift piecePic
+  in UI.pictures $ map pieceAndPosToPic pieceAndPosList
 
-getArrangementPic :: Map Piece Picture -> Move -> Picture
+getArrangementPic :: Map Piece UI.Picture -> Move -> UI.Picture
 getArrangementPic pieceToPicMap (Move fromPos toPos pieceToPosMap) =
   let movePositionsPic = getMovePositionsPic fromPos toPos
       piecesPic        = getPiecesPic pieceToPicMap pieceToPosMap
-  in pictures [movePositionsPic, piecesPic]
+  in UI.pictures [movePositionsPic, piecesPic]
 
-stateToPic :: State -> Picture
-stateToPic (State staticPic pieceToPicMap games gameNum moveNum) =
-  let (Game tags moves winner) = games Vector.! gameNum
-      move                     = moves Vector.! moveNum
-      infoPic                  = getInfoPic tags
-      arrangementPic           = getArrangementPic pieceToPicMap move
-  in pictures [staticPic, infoPic, arrangementPic]
+appStateToPic :: AppState -> UI.Picture
+appStateToPic appState =
+  let move           = getCurrentMove appState
+      infoPic        = getInfoPic $ tags $ getCurrentGame appState
+      arrangementPic = getArrangementPic (appState^.pieceToPicMap) move
+  in UI.pictures [appState^.staticPic, infoPic, arrangementPic]

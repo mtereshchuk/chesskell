@@ -6,7 +6,7 @@ import Data.Vector           (Vector)
 import Data.Map.Strict       (Map)
 import Graphics.Gloss hiding (Vector)
 import Chesskell.Chess       (Piece)
-import Chesskell.Commons        (Game)
+import Chesskell.CoreCommons (Game)
 import Chesskell.View        (chesskellDisplay, getStaticPic)
 
 run :: IO ()
