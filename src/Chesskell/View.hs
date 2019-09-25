@@ -96,7 +96,7 @@ getInfoPlacePic = constructSquare infoSquareWidth infoSquareColor xShift yShift
 
 getControlPic :: UI.Picture
 getControlPic =
-  let controlPics = map (UI.color controlColor . UI.text) [prevGame, nextGame, prevMove, nextMove]
+  let controlPics = map (UI.color controlColor . UI.text) [exit, prevGame, nextGame, prevMove, nextMove]
       picModify i = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale controlScale controlScale $ controlPics !! i)
       controlList = [picModify i | i <- [0..length controlPics - 1]]
   in UI.translate xShift yShift $ UI.pictures controlList
@@ -105,11 +105,12 @@ getControlPic =
     prevMove     = "Prev Move: Left Arrow"
     nextGame     = "Next Game: Shift + Right Arrow"
     prevGame     = "Prev Game: Shift + Left Arrow"
+    exit         = "Exit: Esc"
     controlColor = UI.makeColorI 110 33 39 60
     controlScale = viewScale / 625.0
     betweenShift = viewScale / 2.2
     xShift       = viewScale * 2.55
-    yShift       = -viewScale * 1.6
+    yShift       = -viewScale * 1.72
 
 getHaskellLogoPic :: IO UI.Picture
 getHaskellLogoPic = do
@@ -120,7 +121,7 @@ getHaskellLogoPic = do
     logoFileName = "Haskell_Logo"
     logoScale    = viewScale / 60.0
     xShift       = viewScale * 4.2
-    yShift       =  -viewScale * 3.2
+    yShift       =  -viewScale * 3.1
 
 getStaticPic :: IO UI.Picture
 getStaticPic = do
