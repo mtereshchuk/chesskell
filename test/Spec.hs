@@ -1,2 +1,9 @@
+module Main where
+
+import Test.Tasty               (testGroup, defaultMain)
+import Chesskell.ControllerTest (controllerTest)
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = do
+  controllerTest <- controllerTest
+  defaultMain $ testGroup "" [controllerTest]
