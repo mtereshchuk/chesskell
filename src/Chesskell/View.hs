@@ -19,7 +19,7 @@ import           Chesskell.CoreCommons (Tag (..), Move (..), AppState, tags, sta
                                        pieceToPicMap, getCurrentGame, getCurrentMove)
 
 imagesPathPrefix :: String
-imagesPathPrefix = "resources/images/"
+imagesPathPrefix = "resources/bmp/"
 
 imageFileExtension :: String
 imageFileExtension = ".bmp"
