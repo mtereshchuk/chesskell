@@ -32,4 +32,4 @@ This project is licensed under the BSD 3-Clause License - see the [LICENSE.md](L
 ## Acknowledgements
 * [Haskell ITMO course at CTD](https://github.com/jagajaga/FP-Course-ITMO)
 * [Haskell Stepik course](https://stepik.org/course/75/promo)
-* [Chess.com analysis board](https://www.chess.com/ru/analysis)
+* [Chess.com analysis board](https://www.chess.com/analysis)
