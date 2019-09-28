@@ -21,12 +21,12 @@ description:         Please see the README on GitHub at <https://github.com/tere
 
 dependencies:
 - base >= 4.7 && < 5
-- parsec
-- matrix
-- lens
-- containers
-- gloss
 - vector
+- matrix
+- containers
+- lens
+- parsec
+- gloss
 - tasty
 - tasty-hspec
 

@@ -3,7 +3,6 @@ module Chesskell.Module
   ) where
 
 import           System.Environment     (getArgs)
-import           Control.Exception      (ArrayException, try, evaluate)
 import           Data.Vector            (Vector)
 import qualified Graphics.Gloss         as UI
 import           Chesskell.Chess        (Piece)
