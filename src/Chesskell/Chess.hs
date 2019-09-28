@@ -6,6 +6,7 @@ module Chesskell.Chess
   , Place
   , Arrangement
   , boardLength
+  , oppositeColor
   , allPieces
   , initArrangement
   , initMainPieceI
@@ -14,6 +15,7 @@ module Chesskell.Chess
   , initRookJ
   , castKingJ
   , castRookJ
+  , arrangementToString
   ) where
 
 import           Data.Char   (toLower)
@@ -34,6 +36,10 @@ type Arrangement = Matrix Place
 
 boardLength :: Int
 boardLength = 8
+
+oppositeColor :: Color -> Color
+oppositeColor White = Black
+oppositeColor Black = White
 
 allPieces :: [Piece]
 allPieces = [(c, pt) | c <- [White, Black], pt <- [King, Queen, Bishop, Knight, Rook, Pawn]]
@@ -74,3 +80,20 @@ castKingJ (Right _) = 7
 castRookJ :: Either () () -> Int
 castRookJ (Left _)  = 4
 castRookJ (Right _) = 6
+
+placeToChar :: Place -> Char
+placeToChar Nothing = '.'
+placeToChar (Just (color, figureType)) = 
+  colorTransform color $ toSymbol figureType
+  where 
+    toSymbol ft = 
+      if ft == Knight 
+      then 'N' 
+      else head $ show ft
+    colorTransform c = 
+      if c == Black
+      then toLower
+      else id 
+
+arrangementToString :: Arrangement -> String
+arrangementToString arrangement = intercalate "\n" $ map placeToChar <$> Matrix.toLists arrangement

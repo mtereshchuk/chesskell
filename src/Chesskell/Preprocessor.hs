@@ -7,8 +7,8 @@ module Chesskell.Preprocessor
 
 import           Prelude hiding               (round)
 import           Data.Char                    (ord)
-import           Data.List                    (find)
-import           Data.Maybe                   (isJust, isNothing, fromJust)
+import           Data.List                    (find, findIndex)
+import           Data.Maybe                   (isJust, isNothing, fromJust, catMaybes)
 import           Data.Vector                  (Vector)
 import qualified Data.Vector                  as Vector
 import qualified Data.Matrix                  as Matrix
@@ -17,8 +17,8 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Control.Lens                 (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
 import           Chesskell.Chess              (Color (..), PieceType(..), Piece, Position, Arrangement,
-                                              boardLength, initArrangement, initMainPieceI, initPawnI,
-                                              initKingJ, initRookJ, castKingJ, castRookJ)
+                                              boardLength, oppositeColor, initArrangement, initMainPieceI,
+                                              initPawnI, initKingJ, initRookJ, castKingJ, castRookJ)
 import           Chesskell.CoreCommons hiding (pieceToPosMap)
 import           Chesskell.PGNParser          (RawTag (..), RawMove (..), RawGame (..),
                                               X (..), Y (..), RawExtraCoord, RawPosition)
@@ -27,7 +27,7 @@ data GameState = GameState
   { _arrangement   :: Arrangement
   , _pieceToPosMap :: Map Piece [Position]
   , _enPassantPos  :: Maybe Position
-  }
+  } deriving Show
 
 type ExtraCoord = Maybe (Either Int Int)
 type PieceAndPos = (Piece, Position)
@@ -54,51 +54,90 @@ calcExtraCoord (Just (Right y)) = Just . Left  $ calcI y
 calcPosition :: RawPosition -> Position
 calcPosition (x, y) = (calcI y, calcJ x)
 
-getBetweenPosLine :: Position -> Position -> Bool -> [Position]
-getBetweenPosLine (i, j) (ii, jj) straight
-  | i == ii && straight = notDiagonal (i,) j jj
-  | j == jj && straight = notDiagonal (,j) i ii
-  | otherwise =
+isValidMainPiecePath :: PieceType -> Position -> Position -> Bool
+isValidMainPiecePath pieceType (i, j) (ii, jj) =
+  case pieceType of
+    King   -> iDist == 1 && jDist == 0 || iDist == 0 && jDist == 1 || iDist == 1 && jDist == 1
+    Queen  -> iDist == 0 || jDist == 0 || iDist == jDist
+    Bishop -> iDist == jDist
+    Knight -> iDist == 1 && jDist == 2 || iDist == 2 && jDist == 1
+    Rook   -> iDist == 0 || jDist == 0
+    _      -> True
+  where
+    iDist = abs $ ii - i
+    jDist = abs $ jj - j
+
+getBetweenPosLine :: Position -> Position -> [Position]
+getBetweenPosLine (i, j) (ii, jj)
+  | iDist == 0 && jDist > 1      = notDiagonal (i,) j jj
+  | iDist > 1  && jDist == 0     = notDiagonal (,j) i ii
+  | iDist > 1  && iDist == jDist =
     let minI = min i ii
         maxI = max i ii
         minJ = min j jj
         maxJ = max j jj
     in init $ tail [(x, y) | x <- [minI..maxI], y <- [minJ..maxJ], abs (x - i) == abs (y - j)]
+  | otherwise = []
   where
+    iDist                             = abs $ ii - i
+    jDist                             = abs $ jj - j
     notDiagonal commonApp bord1 bord2 =
       let minBord = min bord1 bord2
           maxBord = max bord1 bord2
       in init $ tail [commonApp x | x <- [minBord..maxBord]]
 
-betweenPosLineIsClean :: Position -> Position -> Arrangement -> Bool ->  Bool
-betweenPosLineIsClean fromPos toPos arrangement straight =
-  let betweenPosLine = getBetweenPosLine fromPos toPos straight
+isBetweenPosLineClean :: Position -> Position -> Arrangement -> Bool
+isBetweenPosLineClean fromPos toPos arrangement =
+  let betweenPosLine = getBetweenPosLine fromPos toPos
   in all (\pos -> isNothing $ arrangement Matrix.! pos) betweenPosLine
 
 getValidToPosPred :: Piece -> Position -> GameState -> Position -> Bool
 getValidToPosPred (color, pieceType) toPos@(ii, jj) gameState fromPos@(i, j) =
   case pieceType of
-    King   -> kingCond
-    Queen  -> queenCond
-    Bishop -> bishopCond
-    Knight -> knightCond
-    Rook   -> rookCond
     Pawn   -> pawnCond
+    _      -> mainPieceCond
   where
-    iDist      = abs $ ii - i
-    jDist      = abs $ jj - j
-    pawnIDist  = (ii - i) * (if color == White then -1 else 1) 
-    bpIsClean  = betweenPosLineIsClean fromPos toPos (gameState^.arrangement)
-    kingCond   = iDist == 1 && jDist == 0 || iDist == 0 && jDist == 1 || iDist == 1 && jDist == 1 
-    queenCond  = (iDist == 0 || jDist == 0 || iDist == jDist) && bpIsClean True
-    bishopCond = iDist == jDist && bpIsClean False
-    knightCond = iDist == 1 && jDist == 2 || iDist == 2 && jDist == 1
-    rookCond   = (iDist == 0 || jDist == 0) && bpIsClean True
-    pawnCond   =
+    isValidMpPath       = isValidMainPiecePath pieceType fromPos toPos
+    isBPosLineClean     = isBetweenPosLineClean fromPos toPos (gameState^.arrangement)
+    mainPieceCond       = isValidMpPath && isBPosLineClean
+    pawnIDist           = (ii - i) * (if color == White then -1 else 1)
+    jDist               = abs $ jj - j
+    enPassantIsRival    = fmap (\(iii, jjj) -> (abs $ iii - i, abs $ jjj - j)) (gameState^.enPassantPos) == Just (0, 1)
+    canCaptureEnPassant = 
+      let toEnPassantColor pos = fst $ fromJust $ (gameState^.arrangement) Matrix.! pos
+          rivalColor           = oppositeColor color
+      in fmap toEnPassantColor (gameState^.enPassantPos) == Just rivalColor
+    pawnCond            =
          pawnIDist == 1 && jDist == 0 && isNothing ((gameState^.arrangement) Matrix.! toPos)
-      || pawnIDist == 2 && jDist == 0 && i == initPawnI color && bpIsClean True
+      || pawnIDist == 2 && jDist == 0 && i == initPawnI color && isBPosLineClean
       || pawnIDist == 1 && jDist == 1 && isJust ((gameState^.arrangement) Matrix.! toPos)
-      || pawnIDist == 1 && jDist == 1 && fmap (\(iii, jjj) -> (abs $ iii - i, abs $ jjj - j)) (gameState^.enPassantPos) == Just (0, 1)
+      || pawnIDist == 1 && jDist == 1 && enPassantIsRival && canCaptureEnPassant 
+
+getDefenderPred :: Color -> Position -> GameState -> Position -> Bool
+getDefenderPred color toPos gameState fromPos =
+  let king                   = (color, King)
+      kingPos                = head $ (gameState^.pieceToPosMap) Map.! king -- safe head
+      rivalColor             = oppositeColor color
+      possibleAttackerBlanks = map (rivalColor,) [Queen, Bishop, Rook]
+      attackersPosList       = concatMap ((gameState^.pieceToPosMap) Map.!) possibleAttackerBlanks
+      attackerPosListNoToPos = filter (/= toPos) attackersPosList
+      possibleAttackers      = map (\pos -> fromJust $ (gameState^.arrangement) Matrix.! pos) attackerPosListNoToPos
+      attackerAndPosList     = zip possibleAttackers attackerPosListNoToPos
+      realAttackerAndPosList = filter (\((_, pieceType), pos) -> isValidMainPiecePath pieceType pos kingPos) attackerAndPosList
+      realAttackerPosList    = map (^._2) realAttackerAndPosList
+      betweenLines           = map (getBetweenPosLine kingPos) realAttackerPosList
+      betweenPlaces          = map (map ((gameState^.arrangement) Matrix.!)) betweenLines
+      placeAndPosList        = zip betweenPlaces betweenLines
+      singlePiecePapl        = filter (\(places, _) -> length (filter isJust places) == 1) placeAndPosList
+      toPosNotContains       = filter (\(_, posList) -> toPos `notElem` posList) singlePiecePapl
+      extract (places, posList) =
+        let index = fromJust $ findIndex isJust places -- safe fromJust
+            piece = fromJust $ places !! index -- safe fromJust
+            pos   = posList !! index
+        in (piece, pos)
+      singlePieceAndPosList  = map extract toPosNotContains
+      singlePosList          = map (^._2) singlePieceAndPosList
+  in notElem fromPos singlePosList
 
 getExtraCoordPred :: ExtraCoord -> Position -> Bool
 getExtraCoordPred Nothing _            = True
@@ -108,8 +147,9 @@ getExtraCoordPred (Just (Right j)) pos = j == pos^._2
 calcFromPos :: Piece -> ExtraCoord -> Position -> GameState -> Either String Position
 calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
   let candidates = (gameState^.pieceToPosMap) Map.! piece
-      vpFiltered = filter validToPosPred candidates
-      filtered   = filter extraCoordPred vpFiltered
+      vpFiltered  = filter validToPosPred candidates
+      defFiltered = filter defenderPred vpFiltered
+      filtered    = filter extraCoordPred defFiltered
   in if null filtered 
      then Left "Invalid move"
      else
@@ -118,6 +158,7 @@ calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
       else Right $ head filtered
   where
     validToPosPred = getValidToPosPred piece toPos gameState
+    defenderPred   = getDefenderPred color toPos gameState
     extraCoordPred = getExtraCoordPred extraCoord
 
 removeCaptured :: PieceAndPos -> GameState -> GameState
