@@ -83,17 +83,17 @@ castRookJ (Right _) = 6
 
 placeToChar :: Place -> Char
 placeToChar Nothing = '.'
-placeToChar (Just (color, figureType)) = 
+placeToChar (Just (color, figureType)) =
   colorTransform color $ toSymbol figureType
-  where 
-    toSymbol ft = 
-      if ft == Knight 
-      then 'N' 
+  where
+    toSymbol ft =
+      if ft == Knight
+      then 'N'
       else head $ show ft
-    colorTransform c = 
+    colorTransform c =
       if c == Black
       then toLower
-      else id 
+      else id
 
 arrangementToString :: Arrangement -> String
 arrangementToString arrangement = intercalate "\n" $ map placeToChar <$> Matrix.toLists arrangement
