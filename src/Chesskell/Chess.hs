@@ -6,9 +6,14 @@ module Chesskell.Chess
   , Place
   , Arrangement
   , boardLength
-  , oppositeColor
-  , getAllPieces
-  , initialArrangement
+  , allPieces
+  , initArrangement
+  , initMainPieceI
+  , initPawnI
+  , initKingJ
+  , initRookJ
+  , castKingJ
+  , castRookJ
   ) where
 
 import           Data.Char   (toLower)
@@ -30,15 +35,11 @@ type Arrangement = Matrix Place
 boardLength :: Int
 boardLength = 8
 
-oppositeColor :: Color -> Color
-oppositeColor White = Black
-oppositeColor Black = White
+allPieces :: [Piece]
+allPieces = [(c, pt) | c <- [White, Black], pt <- [King, Queen, Bishop, Knight, Rook, Pawn]]
 
-getAllPieces :: [Piece]
-getAllPieces = [(c, pt) | c <- [White, Black], pt <- [King, Queen, Bishop, Knight, Rook, Pawn]]
-
-initialArrangement :: Arrangement
-initialArrangement = Matrix.fromLists $
+initArrangement :: Arrangement
+initArrangement = Matrix.fromLists $
      [toBlack <$> mainPieceRow]
   ++ [toBlack <$> pawnRow]
   ++ replicate (boardLength - 4) emptyRaw
@@ -50,3 +51,26 @@ initialArrangement = Matrix.fromLists $
       emptyRaw     = replicate boardLength Nothing
       toBlack      = Just . (,) Black
       toWhite      = Just . (,) White
+
+initMainPieceI :: Color -> Int
+initMainPieceI White = 8
+initMainPieceI Black = 1
+
+initPawnI :: Color -> Int
+initPawnI White = 7
+initPawnI Black = 2
+
+initKingJ :: Int
+initKingJ = 5
+
+initRookJ :: Either () () -> Int
+initRookJ (Left _)  = 1
+initRookJ (Right _) = 8
+
+castKingJ :: Either () () -> Int
+castKingJ (Left _)  = 3
+castKingJ (Right _) = 7
+
+castRookJ :: Either () () -> Int
+castRookJ (Left _)  = 4
+castRookJ (Right _) = 6

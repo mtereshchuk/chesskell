@@ -2,14 +2,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Chesskell.Preprocessor
-  ( preprocessRawGames
+  ( preprocess
   ) where
 
 import           Prelude hiding               (round)
-import           Control.Exception            (ArrayException (..), throw)
 import           Data.Char                    (ord)
 import           Data.List                    (find)
-import           Data.Maybe                   (fromJust, isNothing, isJust)
+import           Data.Maybe                   (isJust, isNothing, fromJust)
 import           Data.Vector                  (Vector)
 import qualified Data.Vector                  as Vector
 import qualified Data.Matrix                  as Matrix
@@ -18,7 +17,8 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Control.Lens                 (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
 import           Chesskell.Chess              (Color (..), PieceType(..), Piece, Position, Arrangement,
-                                              boardLength, oppositeColor, initialArrangement)
+                                              boardLength, initArrangement, initMainPieceI, initPawnI,
+                                              initKingJ, initRookJ, castKingJ, castRookJ)
 import           Chesskell.CoreCommons hiding (pieceToPosMap)
 import           Chesskell.PGNParser          (RawTag (..), RawMove (..), RawGame (..),
                                               X (..), Y (..), RawExtraCoord, RawPosition)
@@ -26,7 +26,7 @@ import           Chesskell.PGNParser          (RawTag (..), RawMove (..), RawGam
 data GameState = GameState
   { _arrangement   :: Arrangement
   , _pieceToPosMap :: Map Piece [Position]
-  , _enPassantOp   :: Maybe Position
+  , _enPassantPos  :: Maybe Position
   }
 
 type ExtraCoord = Maybe (Either Int Int)
@@ -54,20 +54,6 @@ calcExtraCoord (Just (Right y)) = Just . Left  $ calcI y
 calcPosition :: RawPosition -> Position
 calcPosition (x, y) = (calcI y, calcJ x)
 
-getExtraCoordPred :: ExtraCoord -> Position -> Bool
-getExtraCoordPred Nothing _            = True
-getExtraCoordPred (Just (Left i)) pos  = i == pos^._1
-getExtraCoordPred (Just (Right j)) pos = j == pos^._2
-
-validToPosPawnPred :: Position -> Position -> Color -> GameState -> Bool
-validToPosPawnPred (i, j) toPos@(ii, jj) color gameState
-  | abs (ii - i) == 1 && j == jj && isNothing ((gameState^.arrangement) Matrix.! toPos)                    = True
-  | abs (ii - i) == 2 && i == colorCoord && j == jj && isNothing ((gameState^.arrangement) Matrix.! toPos) = True
-  | abs (ii - i) == 1 && abs (jj - j) == 1 && isJust ((gameState^.arrangement) Matrix.! toPos)             = True
-  | abs (ii - i) == 1 && abs (jj - j) == 1 && gameState^.enPassantOp == Just toPos                         = True
-  | otherwise                                                                                              = False
-  where colorCoord = if color == White then 7 else 2
-
 getBetweenPosLine :: Position -> Position -> Bool -> [Position]
 getBetweenPosLine (i, j) (ii, jj) straight
   | i == ii && straight = notDiagonal (i,) j jj
@@ -84,71 +70,93 @@ getBetweenPosLine (i, j) (ii, jj) straight
           maxBord = max bord1 bord2
       in init $ tail [commonApp x | x <- [minBord..maxBord]]
 
-betweenPosLineIsClean :: Position -> Position -> Bool -> Arrangement -> Bool
-betweenPosLineIsClean fromPos toPos straight arrangement =
+betweenPosLineIsClean :: Position -> Position -> Arrangement -> Bool ->  Bool
+betweenPosLineIsClean fromPos toPos arrangement straight =
   let betweenPosLine = getBetweenPosLine fromPos toPos straight
   in all (\pos -> isNothing $ arrangement Matrix.! pos) betweenPosLine
 
-calcFromPos :: Piece -> ExtraCoord -> Position -> GameState -> Position
+getValidToPosPred :: Piece -> Position -> GameState -> Position -> Bool
+getValidToPosPred (color, pieceType) toPos@(ii, jj) gameState fromPos@(i, j) =
+  case pieceType of
+    King   -> kingCond
+    Queen  -> queenCond
+    Bishop -> bishopCond
+    Knight -> knightCond
+    Rook   -> rookCond
+    Pawn   -> pawnCond
+  where
+    iDist      = abs $ ii - i
+    jDist      = abs $ jj - j
+    bpIsClean  = betweenPosLineIsClean fromPos toPos (gameState^.arrangement)
+    kingCond   = iDist == 1 && jDist == 0
+    queenCond  = (iDist == 0 || jDist == 0 || iDist == jDist) && bpIsClean True
+    bishopCond = iDist == jDist && bpIsClean False
+    knightCond = let distPair = (iDist, jDist) in distPair == (1, 2) || distPair == (2, 1)
+    rookCond   = (iDist == 0 || jDist == 0) && bpIsClean True
+    pawnCond   =
+         iDist == 1 && jDist == 0 && isNothing ((gameState^.arrangement) Matrix.! toPos)
+      || iDist == 2 && jDist == 0 && i == initPawnI color && isNothing ((gameState^.arrangement) Matrix.! toPos)
+      || iDist == 1 && jDist == 1 && isJust ((gameState^.arrangement) Matrix.! toPos)
+      || iDist == 1 && jDist == 1 && fmap (\pos -> abs $ pos^._1 - i) (gameState^.enPassantPos) == Just 1
+
+getExtraCoordPred :: ExtraCoord -> Position -> Bool
+getExtraCoordPred Nothing _            = True
+getExtraCoordPred (Just (Left i)) pos  = i == pos^._1
+getExtraCoordPred (Just (Right j)) pos = j == pos^._2
+
+calcFromPos :: Piece -> ExtraCoord -> Position -> GameState -> Either String Position
 calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
   let candidates = (gameState^.pieceToPosMap) Map.! piece
-      ecFiltered = filter extraCoordPred candidates
-      filtered   = filter validToPosPred ecFiltered
+      vpFiltered = filter validToPosPred candidates
+      filtered   = filter extraCoordPred vpFiltered
   in if null filtered 
-     then throw $ IndexOutOfBounds "Incorrect move" 
-     else head filtered
-  where 
+     then Left "Invalid move"
+     else
+      if length filtered > 1
+      then Left "Ambiguous move"
+      else Right $ head filtered
+  where
+    validToPosPred = undefined
     extraCoordPred = getExtraCoordPred extraCoord
-    validToPosPred = case pieceType of
-      King   -> const True
-      Queen  -> \fromPos@(i, j) -> (i == ii || j == jj || abs (i - ii) == abs (jj - j))
-        && betweenPosLineIsClean fromPos toPos True (gameState^.arrangement)
-      Bishop -> \fromPos@(i, j) -> abs (i - ii) == abs (jj - j)
-        && betweenPosLineIsClean fromPos toPos False (gameState^.arrangement)
-      Knight -> \(i, j) ->
-        let dist = (abs $ ii - i, abs $ jj - j)
-        in dist == (1, 2) || dist == (2, 1)
-      Rook   -> \fromPos@(i, j) -> (i == ii || j == jj)
-        && betweenPosLineIsClean fromPos toPos True (gameState^.arrangement)
-      _      -> \fromPos -> validToPosPawnPred fromPos toPos color gameState
 
 removeCaptured :: PieceAndPos -> GameState -> GameState
-removeCaptured (captured, capturedPos) gameState = 
+removeCaptured (captured, capturedPos) gameState =
   let updatedArgm     = arrangement %~ cleanCapturedPos $ gameState
       updatedCaptured = pieceToPosMap %~ updateCaptured $ updatedArgm
   in updatedCaptured
-  where 
+  where
     cleanCapturedPos = Matrix.setElem Nothing capturedPos
     updateCaptured   = Map.adjust (filter (/= capturedPos)) captured
 
-setEnPassant :: Position -> GameState -> GameState
-setEnPassant enPassantPos = enPassantOp ?~ enPassantPos
-
-removeEnPassant :: GameState -> GameState
-removeEnPassant = enPassantOp .~ Nothing
-
-getCaptureUpdate :: Piece -> Position -> Bool -> GameState -> GameState
-getCaptureUpdate (color, _) toPos wasCapture gameState = if wasCapture
+getCaptureUpdate :: Piece -> Position -> Bool -> GameState -> Either String GameState
+getCaptureUpdate (color, _) toPos wasCapture gameState =
+  if wasCapture
   then
-    let toPosPiece            = (gameState^.arrangement) Matrix.! toPos
-        enPassantChange coord = if color == White then coord + 1 else coord - 1
-        capturedPos           = case toPosPiece of
-          (Just _) -> toPos
-          _        -> _1 %~ enPassantChange $ toPos
-        captured              = fromJust ((gameState^.arrangement) Matrix.! capturedPos)
-    in removeCaptured (captured, capturedPos) gameState
-  else gameState
+    let toPosPlace = (gameState^.arrangement) Matrix.! toPos
+    in case toPosPlace of
+      (Just piece) -> remove (piece, toPos)
+      Nothing  -> 
+        let enPassantPlace = fmap ((gameState^.arrangement) Matrix.!) (gameState^.enPassantPos)
+        in case enPassantPlace of
+          (Just (Just piece)) -> remove (piece, fromJust (gameState^.enPassantPos)) -- safe fromJust
+          Nothing             -> Left "No captured piece for move"
+  else Right gameState
+  where
+    remove pieceAndPos = Right $ removeCaptured pieceAndPos gameState
 
 getEnPassantUpdate :: PieceAndPos -> Position -> GameState -> GameState
-getEnPassantUpdate ((color, pieceType), fromPos@(i, j)) toPos@(ii, jj) =
-  if pieceType == Pawn && i == (if color == White then 7 else 2) && abs (ii - i) == 2
-  then setEnPassant (if color == White then (ii + 1, jj) else (ii - 1, jj))
+getEnPassantUpdate ((color, pieceType), fromPos@(i, _)) toPos@(ii, _) =
+  if pieceType == Pawn && i == initPawnI color && abs (ii - i) == 2
+  then setEnPassant
   else removeEnPassant
+  where
+    setEnPassant    = enPassantPos ?~ toPos
+    removeEnPassant = enPassantPos .~ Nothing
 
 getPawnTurnUpdate :: PieceAndPos -> Maybe PieceType -> GameState -> GameState
 getPawnTurnUpdate (piece@(color, _), toPos) turnIntoType = case turnIntoType of
   (Just turnPieceType) -> updatePawnTurn (piece, toPos) (color, turnPieceType)
-  Nothing               -> id
+  Nothing              -> id
 
 makeMoveBase :: PieceAndPos -> Position -> GameState -> GameState
 makeMoveBase (piece, fromPos) toPos gameState = 
@@ -183,69 +191,85 @@ makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gam
     updateKing       = Map.adjust ((kingToPos :) . filter (/= kingFromPos)) king
     updateRook       = Map.adjust ((rookToPos :) . filter (/= rookFromPos)) rook
 
-calcNextGameState :: RawMove -> Color -> GameState -> (Position, Position, GameState)
+calcNextGameState :: RawMove -> Color -> GameState -> Either String (Position, Position, GameState)
 calcNextGameState (BaseRawMove pieceType rawExtraCoord wasCapture rawPosition turnIntoType _ _) color gameState =
-  let captureUpdate   = getCaptureUpdate piece toPos wasCapture
-      enPassantUpdate = getEnPassantUpdate (piece, fromPos) toPos
-      moveUpdate      = makeMoveBase (piece, fromPos) toPos
-      pawnTurnUpdate  = getPawnTurnUpdate (piece, toPos) turnIntoType
-      nextGameState   = (pawnTurnUpdate . moveUpdate . enPassantUpdate . captureUpdate) gameState
-  in (fromPos, toPos, nextGameState)
+  let calcFromPosRes  = calcFromPos piece extraCoord toPos gameState
+  in case calcFromPosRes of
+    (Left errorMsg) -> Left errorMsg
+    (Right fromPos) ->
+      let captureUpdateRes = getCaptureUpdate piece toPos wasCapture gameState
+      in case captureUpdateRes of 
+        (Left errorMsg)           -> Left errorMsg
+        (Right gsWithoutCaptured) ->
+          let enPassantUpdate = getEnPassantUpdate (piece, fromPos) toPos
+              moveUpdate      = makeMoveBase (piece, fromPos) toPos
+              pawnTurnUpdate  = getPawnTurnUpdate (piece, toPos) turnIntoType
+              nextGameState   = (pawnTurnUpdate . moveUpdate . enPassantUpdate) gsWithoutCaptured    
+          in Right (fromPos, toPos, nextGameState)
   where
-    piece          = (color, pieceType)
-    extraCoord     = calcExtraCoord rawExtraCoord
-    toPos@(ii, jj) = calcPosition rawPosition
-    fromPos@(i, j) = calcFromPos piece extraCoord toPos gameState
+    piece       = (color, pieceType)
+    extraCoord  = calcExtraCoord rawExtraCoord
+    toPos       = calcPosition rawPosition
 calcNextGameState castling color gameState =
-  let nextGameState = makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState
-  in (kingFromPos, kingToPos, nextGameState)
+  let castPieces = ((gameState^.arrangement) Matrix.! kingFromPos, (gameState^.arrangement) Matrix.! rookFromPos)
+  in case castPieces of
+    (Just king, Just rook) ->
+      let nextGameState = makeMoveCastling (king, kingFromPos) (rook, rookFromPos) kingToPos rookToPos gameState
+      in Right (kingFromPos, kingToPos, nextGameState)
+    _                      -> Left "Castling is impossible for move"
   where
-    colorCoord  = if color == White then 8 else 1
-    king        = (color, King)
-    kingFromPos = (colorCoord, 5)
-    rook        = (color, Rook)
-    rookFromPos = case castling of
-      ShortCastling _ _ -> (colorCoord, 8)
-      _                 -> (colorCoord, 1)
-    kingToPos   = case castling of
-      ShortCastling _ _ -> (colorCoord, 7)
-      _                 -> (colorCoord, 3)
-    rookToPos   = case castling of
-      ShortCastling _ _ -> (colorCoord, 6)
-      _                 -> (colorCoord, 4)
+    colorCoord  = initMainPieceI color
+    side        = case castling of
+     ShortCastling _ _ -> Right ()
+     LongCastling _ _  -> Left ()
+    kingFromPos = (colorCoord, initKingJ)
+    rookFromPos = (colorCoord, initRookJ side)
+    kingToPos   = (colorCoord, castKingJ side)
+    rookToPos   = (colorCoord, castRookJ side)
 
-calcMovesHelper :: [RawMove] -> [Move] -> Color -> GameState -> Vector Move
-calcMovesHelper [] moves _ gameState = Vector.fromList $ reverse moves
-calcMovesHelper (rm : rms) moves prevColor prevGameState = 
-  let color                       = oppositeColor prevColor
-      (fromPos, toPos, gameState) = calcNextGameState rm color prevGameState
-      newMove                     = Move fromPos toPos (gameState^.pieceToPosMap) 
-  in calcMovesHelper rms (newMove : moves) color gameState
+calcMovesHelper :: Int -> [RawMove] -> [Move] -> GameState -> Either String (Vector Move)
+calcMovesHelper _ [] moves gameState = Right . Vector.fromList $ reverse moves
+calcMovesHelper i (rm : rms) moves prevGameState =
+  let color                = if even i then White else Black
+      calcNextGameStateRes = calcNextGameState rm color prevGameState
+  in case calcNextGameStateRes of
+    (Left errorMsg)                     -> Left $ errorMsg ++ " " ++ show i
+    (Right (fromPos, toPos, gameState)) ->
+      let move = Move fromPos toPos (gameState^.pieceToPosMap)
+      in calcMovesHelper (i + 1) rms (move : moves) gameState
 
-initialPieceToPosMap :: Map Piece [Position]
-initialPieceToPosMap =
+initPieceToPosMap :: Map Piece [Position]
+initPieceToPosMap =
   let pieceAndPosList = foldMap toPieceAndPos [(x, y) | x <- [1..boardLength], y <- [1..boardLength]]
   in Map.fromListWith (++) pieceAndPosList
   where
     toPieceAndPos pos =
-      case initialArrangement Matrix.! pos of
+      case initArrangement Matrix.! pos of
       Nothing      -> []
       (Just piece) -> [(piece, [pos])]
 
-calcMoves :: [RawMove] -> Vector Move
-calcMoves rawMoves = calcMovesHelper rawMoves [] Black initialGameState
+calcMoves :: [RawMove] -> Either String (Vector Move)
+calcMoves rawMoves = calcMovesHelper 0 rawMoves [] initialGameState
   where
     initialGameState = GameState
-      { _arrangement   = initialArrangement
-      , _pieceToPosMap = initialPieceToPosMap
-      , _enPassantOp   = Nothing
+      { _arrangement   = initArrangement
+      , _pieceToPosMap = initPieceToPosMap
+      , _enPassantPos  = Nothing
       }
 
-preprocessRawGames :: [RawGame] -> Vector Game
-preprocessRawGames = Vector.fromList . map preprocessRawGame
-  where
-    preprocessRawGame rawGame = Game
-      { tags   = calcTags  $ rawTags rawGame
-      , moves  = calcMoves $ rawMoves rawGame
-      , winner = rawWinner rawGame
-      }
+preprocessHelper :: Int -> [RawGame] -> [Game] -> Either String (Vector Game)
+preprocessHelper _ [] games         = Right . Vector.fromList $ reverse games
+preprocessHelper i (rg : rgs) games =
+  let calcMovesRes = calcMoves $ rawMoves rg
+  in case calcMovesRes of
+    (Left errorMsg)  -> Left $ errorMsg ++ " at game " ++ show i
+    (Right moves)    ->
+      let game = Game
+            { tags   = calcTags $ rawTags rg
+            , moves  = moves
+            , winner = rawWinner rg
+            }
+      in preprocessHelper (i + 1) rgs (game : games)
+
+preprocess :: [RawGame] -> Either String (Vector Game)
+preprocess rawGames = preprocessHelper 0 rawGames []

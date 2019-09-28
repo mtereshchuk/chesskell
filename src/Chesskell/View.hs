@@ -14,7 +14,7 @@ import qualified Data.Map              as Map
 import qualified Data.Vector           as Vector
 import           Control.Lens          ((^.))
 import qualified Graphics.Gloss        as UI
-import           Chesskell.Chess       (Piece, Position, boardLength, getAllPieces)
+import           Chesskell.Chess       (Piece, Position, boardLength, allPieces)
 import           Chesskell.CoreCommons (Tag (..), Move (..), AppState, tags, staticPic,
                                        pieceToPicMap, getCurrentGame, getCurrentMove)
 
@@ -145,7 +145,7 @@ pieceToPic piece = do
 
 getPieceToPicMap :: IO (Map Piece UI.Picture)
 getPieceToPicMap = do
-  let pieces        = getAllPieces
+  let pieces        = allPieces
       piecePicsIO   = map pieceToPic pieces
   piecePics         <- sequence piecePicsIO
   let pieceToPicMap = Map.fromList $ zip pieces piecePics

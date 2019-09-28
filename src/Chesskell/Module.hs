@@ -9,7 +9,7 @@ import qualified Graphics.Gloss         as UI
 import           Chesskell.Chess        (Piece)
 import           Chesskell.CoreCommons  (Game, AppState (..))
 import           Chesskell.PGNParser    (parsePGNFile)
-import           Chesskell.Preprocessor (preprocessRawGames)
+import           Chesskell.Preprocessor (preprocess)
 import           Chesskell.View         (chesskellDisplay, backgroundColor, getStaticPic, getPieceToPicMap, appStateToPic)
 import           Chesskell.Controller   (updateAppState)
 
@@ -22,12 +22,12 @@ process = do
     let filePath = head args
     parseRes     <- parsePGNFile filePath
     case parseRes of
-      (Left parseErrorReason) -> return $ Left $ parseError ++ show parseErrorReason
-      (Right rawGames)  -> do
-        preprocessRes <- try $ evaluate $ preprocessRawGames rawGames :: IO (Either ArrayException (Vector Game))
+      (Left parseErrorMsg) -> return . Left $ parseError ++ show parseErrorMsg
+      (Right rawGames)     -> do
+        let preprocessRes = preprocess rawGames
         case preprocessRes of
-          (Left _)      -> return $ Left invalidMove  
-          (Right games) -> do
+          (Left preprocessErrorMsg) -> return . Left $ invalidMove ++ preprocessErrorMsg 
+          (Right games)             -> do
             staticPic     <- getStaticPic
             pieceToPicMap <- getPieceToPicMap
             return $ Right AppState
@@ -40,13 +40,13 @@ process = do
   where
     missingFilePath = "Missing file path"
     parseError      = "Error during parsing file: "
-    invalidMove     = "Invalid move detected"
+    invalidMove     = "Error during : "
 
 run :: IO ()
 run = do
   processRes <- process
   case processRes of
-    (Left errorMessage)     -> putStrLn errorMessage 
+    (Left errorMsg)         -> putStrLn errorMsg 
     (Right initialAppState) -> 
       UI.play
         chesskellDisplay
