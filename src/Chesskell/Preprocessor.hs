@@ -15,7 +15,7 @@ import qualified Data.Matrix                  as Matrix
 import qualified Data.Set                     as Set
 import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
-import           Control.Lens                 (makeLenses, (^.), (.~), (%~), (?~), _1, _2)
+import           Control.Lens                 (makeLenses, (^.), (.~), (%~), (?~))
 import           Chesskell.Chess              (Color (..), PieceType(..), Piece, Position, Arrangement,
                                               boardLength, oppositeColor, initArrangement, initMainPieceI,
                                               initPawnI, initKingJ, initRookJ, castKingJ, castRookJ)
@@ -104,7 +104,7 @@ getValidToPosPred (color, pieceType) toPos@(ii, jj) gameState fromPos@(i, j) =
     jDist               = abs $ jj - j
     enPassantIsRival    = fmap (\(iii, jjj) -> (abs $ iii - i, abs $ jjj - j)) (gameState^.enPassantPos) == Just (0, 1)
     canCaptureEnPassant = 
-      let toEnPassantColor pos = fst $ fromJust $ (gameState^.arrangement) Matrix.! pos
+      let toEnPassantColor pos = fst $ fromJust $ (gameState^.arrangement) Matrix.! pos -- safe fromJust
           rivalColor           = oppositeColor color
       in fmap toEnPassantColor (gameState^.enPassantPos) == Just rivalColor
     pawnCond            =
@@ -124,7 +124,7 @@ getDefenderPred color toPos gameState fromPos =
       possibleAttackers      = map (\pos -> fromJust $ (gameState^.arrangement) Matrix.! pos) attackerPosListNoToPos
       attackerAndPosList     = zip possibleAttackers attackerPosListNoToPos
       realAttackerAndPosList = filter (\((_, pieceType), pos) -> isValidMainPiecePath pieceType pos kingPos) attackerAndPosList
-      realAttackerPosList    = map (^._2) realAttackerAndPosList
+      realAttackerPosList    = map snd realAttackerAndPosList
       betweenLines           = map (getBetweenPosLine kingPos) realAttackerPosList
       betweenPlaces          = map (map ((gameState^.arrangement) Matrix.!)) betweenLines
       placeAndPosList        = zip betweenPlaces betweenLines
@@ -136,13 +136,13 @@ getDefenderPred color toPos gameState fromPos =
             pos   = posList !! index
         in (piece, pos)
       singlePieceAndPosList  = map extract toPosNotContains
-      singlePosList          = map (^._2) singlePieceAndPosList
+      singlePosList          = map snd singlePieceAndPosList
   in notElem fromPos singlePosList
 
 getExtraCoordPred :: ExtraCoord -> Position -> Bool
 getExtraCoordPred Nothing _            = True
-getExtraCoordPred (Just (Left i)) pos  = i == pos^._1
-getExtraCoordPred (Just (Right j)) pos = j == pos^._2
+getExtraCoordPred (Just (Left i)) pos  = i == fst pos
+getExtraCoordPred (Just (Right j)) pos = j == snd pos
 
 calcFromPos :: Piece -> ExtraCoord -> Position -> GameState -> Either String Position
 calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
