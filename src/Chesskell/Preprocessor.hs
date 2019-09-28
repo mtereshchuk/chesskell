@@ -87,17 +87,18 @@ getValidToPosPred (color, pieceType) toPos@(ii, jj) gameState fromPos@(i, j) =
   where
     iDist      = abs $ ii - i
     jDist      = abs $ jj - j
+    pawnIDist  = (ii - i) * (if color == White then -1 else 1) 
     bpIsClean  = betweenPosLineIsClean fromPos toPos (gameState^.arrangement)
-    kingCond   = iDist == 1 && jDist == 0
+    kingCond   = iDist == 1 && jDist == 0 || iDist == 0 && jDist == 1 || iDist == 1 && jDist == 1 
     queenCond  = (iDist == 0 || jDist == 0 || iDist == jDist) && bpIsClean True
     bishopCond = iDist == jDist && bpIsClean False
-    knightCond = let distPair = (iDist, jDist) in distPair == (1, 2) || distPair == (2, 1)
+    knightCond = iDist == 1 && jDist == 2 || iDist == 2 && jDist == 1
     rookCond   = (iDist == 0 || jDist == 0) && bpIsClean True
     pawnCond   =
-         iDist == 1 && jDist == 0 && isNothing ((gameState^.arrangement) Matrix.! toPos)
-      || iDist == 2 && jDist == 0 && i == initPawnI color && isNothing ((gameState^.arrangement) Matrix.! toPos)
-      || iDist == 1 && jDist == 1 && isJust ((gameState^.arrangement) Matrix.! toPos)
-      || iDist == 1 && jDist == 1 && fmap (\pos -> abs $ pos^._1 - i) (gameState^.enPassantPos) == Just 1
+         pawnIDist == 1 && jDist == 0 && isNothing ((gameState^.arrangement) Matrix.! toPos)
+      || pawnIDist == 2 && jDist == 0 && i == initPawnI color && bpIsClean True
+      || pawnIDist == 1 && jDist == 1 && isJust ((gameState^.arrangement) Matrix.! toPos)
+      || pawnIDist == 1 && jDist == 1 && fmap (\(iii, jjj) -> (abs $ iii - i, abs $ jjj - j)) (gameState^.enPassantPos) == Just (0, 1)
 
 getExtraCoordPred :: ExtraCoord -> Position -> Bool
 getExtraCoordPred Nothing _            = True
@@ -116,7 +117,7 @@ calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
       then Left "Ambiguous move"
       else Right $ head filtered
   where
-    validToPosPred = undefined
+    validToPosPred = getValidToPosPred piece toPos gameState
     extraCoordPred = getExtraCoordPred extraCoord
 
 removeCaptured :: PieceAndPos -> GameState -> GameState
@@ -233,7 +234,7 @@ calcMovesHelper i (rm : rms) moves prevGameState =
   let color                = if even i then White else Black
       calcNextGameStateRes = calcNextGameState rm color prevGameState
   in case calcNextGameStateRes of
-    (Left errorMsg)                     -> Left $ errorMsg ++ " " ++ show i
+    (Left errorMsg)                     -> Left $ errorMsg ++ " " ++ show (i + 1)
     (Right (fromPos, toPos, gameState)) ->
       let move = Move fromPos toPos (gameState^.pieceToPosMap)
       in calcMovesHelper (i + 1) rms (move : moves) gameState
@@ -262,7 +263,7 @@ preprocessHelper _ [] games         = Right . Vector.fromList $ reverse games
 preprocessHelper i (rg : rgs) games =
   let calcMovesRes = calcMoves $ rawMoves rg
   in case calcMovesRes of
-    (Left errorMsg)  -> Left $ errorMsg ++ " at game " ++ show i
+    (Left errorMsg)  -> Left $ errorMsg ++ " at game " ++ show (i + 1)
     (Right moves)    ->
       let game = Game
             { tags   = calcTags $ rawTags rg
