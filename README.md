@@ -1,6 +1,6 @@
 # Chesskell
 
-Visualizes chess games in [`.pgn`](https://en.wikipedia.org/wiki/Portable_Game_Notation) format.
+Visualizes chess games in [PGN](https://en.wikipedia.org/wiki/Portable_Game_Notation) format.
 
 ![](resources/png/Chesskell_Preview.png)
 
