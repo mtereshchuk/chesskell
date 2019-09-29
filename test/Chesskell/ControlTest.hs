@@ -1,5 +1,5 @@
-module Chesskell.ControllerTest
-  ( controllerTest
+module Chesskell.ControlTest
+  ( controlTest
   ) where
 
 import           Data.Vector                          (Vector)
@@ -10,10 +10,10 @@ import           Test.Tasty                           (TestTree)
 import           Test.Tasty.Hspec                     (Spec, testSpec, describe, it, shouldSatisfy)
 import qualified Graphics.Gloss.Interface.IO.Interact as UI
 import           Chesskell.CoreCommons                (Move (..), Game (..), AppState (..), gameNum, moveNum)
-import           Chesskell.Controller                 (updateAppState)
+import           Chesskell.Control                    (updateAppState)
 
-specController :: Spec
-specController = do
+specControl :: Spec
+specControl = do
   describe "Prev move works" $ do
     it "First move change" $
       updateAppState prevMoveEvent firstMoveAppState 
@@ -87,5 +87,5 @@ specController = do
     middleGameAppState = gameNum .~ 1 $ baseAppState
     lastGameAppState   = gameNum .~ 2 $ baseAppState
     
-controllerTest :: IO TestTree
-controllerTest = testSpec "Controller" specController
+controlTest :: IO TestTree
+controlTest = testSpec "Control" specControl

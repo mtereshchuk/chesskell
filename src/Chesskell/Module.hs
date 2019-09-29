@@ -10,7 +10,7 @@ import           Chesskell.CoreCommons  (Game, AppState (..))
 import           Chesskell.PGNParser    (parsePGNFile)
 import           Chesskell.Preprocessor (preprocess)
 import           Chesskell.View         (chesskellDisplay, backgroundColor, getStaticPic, getPieceToPicMap, appStateToPic)
-import           Chesskell.Controller   (updateAppState)
+import           Chesskell.Control      (updateAppState)
 
 process :: IO (Either String AppState)
 process = do

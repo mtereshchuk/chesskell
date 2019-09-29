@@ -3,11 +3,11 @@ module Main where
 import Test.Tasty                 (testGroup, defaultMain)
 import Chesskell.PGNParserTest    (pgnParserTest)
 import Chesskell.PreprocessorTest (preprocessorTest)
-import Chesskell.ControllerTest   (controllerTest)
+import Chesskell.ControlTest      (controlTest)
 
 main :: IO ()
 main = do
   pgnParserTest    <- pgnParserTest
   preprocessorTest <- preprocessorTest
-  controllerTest   <- controllerTest
-  defaultMain $ testGroup "" [pgnParserTest, preprocessorTest, controllerTest]
+  controlTest      <- controlTest
+  defaultMain $ testGroup "" [pgnParserTest, preprocessorTest, controlTest]

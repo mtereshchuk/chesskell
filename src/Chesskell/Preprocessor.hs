@@ -146,7 +146,7 @@ getExtraCoordPred (Just (Right j)) pos = j == snd pos
 
 calcFromPos :: Piece -> ExtraCoord -> Position -> GameState -> Either String Position
 calcFromPos piece@(color, pieceType) extraCoord toPos@(ii, jj) gameState =
-  let candidates = (gameState^.pieceToPosMap) Map.! piece
+  let candidates  = (gameState^.pieceToPosMap) Map.! piece
       vpFiltered  = filter validToPosPred candidates
       defFiltered = filter defenderPred vpFiltered
       filtered    = filter extraCoordPred defFiltered

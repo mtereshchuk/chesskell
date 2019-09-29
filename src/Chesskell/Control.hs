@@ -1,4 +1,4 @@
-module Chesskell.Controller
+module Chesskell.Control
   ( updateAppState
   ) where
 
