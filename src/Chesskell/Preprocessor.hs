@@ -115,28 +115,28 @@ getValidToPosPred (color, pieceType) toPos@(ii, jj) gameState fromPos@(i, j) =
 
 getDefenderPred :: Color -> Position -> GameState -> Position -> Bool
 getDefenderPred color toPos gameState fromPos =
-  let king                   = (color, King)
-      kingPos                = head $ (gameState^.pieceToPosMap) Map.! king -- safe head
-      rivalColor             = oppositeColor color
-      possibleAttackerBlanks = map (rivalColor,) [Queen, Bishop, Rook]
-      attackersPosList       = concatMap ((gameState^.pieceToPosMap) Map.!) possibleAttackerBlanks
-      attackerPosListNoToPos = filter (/= toPos) attackersPosList
-      possibleAttackers      = map (\pos -> fromJust $ (gameState^.arrangement) Matrix.! pos) attackerPosListNoToPos
-      attackerAndPosList     = zip possibleAttackers attackerPosListNoToPos
-      realAttackerAndPosList = filter (\((_, pieceType), pos) -> isValidMainPiecePath pieceType pos kingPos) attackerAndPosList
-      realAttackerPosList    = map snd realAttackerAndPosList
-      betweenLines           = map (getBetweenPosLine kingPos) realAttackerPosList
-      betweenPlaces          = map (map ((gameState^.arrangement) Matrix.!)) betweenLines
-      placeAndPosList        = zip betweenPlaces betweenLines
-      singlePiecePapl        = filter (\(places, _) -> length (filter isJust places) == 1) placeAndPosList
-      toPosNotContains       = filter (\(_, posList) -> toPos `notElem` posList) singlePiecePapl
+  let king                      = (color, King)
+      kingPos                   = head $ (gameState^.pieceToPosMap) Map.! king -- safe head
+      rivalColor                = oppositeColor color
+      possibleAttackerBlanks    = map (rivalColor,) [Queen, Bishop, Rook]
+      attackersPosList          = concatMap ((gameState^.pieceToPosMap) Map.!) possibleAttackerBlanks
+      attackerPosListNoToPos    = filter (/= toPos) attackersPosList
+      possibleAttackers         = map (\pos -> fromJust $ (gameState^.arrangement) Matrix.! pos) attackerPosListNoToPos
+      attackerAndPosList        = zip possibleAttackers attackerPosListNoToPos
+      realAttackerAndPosList    = filter (\((_, pieceType), pos) -> isValidMainPiecePath pieceType pos kingPos) attackerAndPosList
+      realAttackerPosList       = map snd realAttackerAndPosList
+      betweenLines              = map (getBetweenPosLine kingPos) realAttackerPosList
+      betweenPlaces             = map (map ((gameState^.arrangement) Matrix.!)) betweenLines
+      placeAndPosList           = zip betweenPlaces betweenLines
+      singlePiecePapl           = filter (\(places, _) -> length (filter isJust places) == 1) placeAndPosList
+      toPosNotContains          = filter (\(_, posList) -> toPos `notElem` posList) singlePiecePapl
       extract (places, posList) =
         let index = fromJust $ findIndex isJust places -- safe fromJust
             piece = fromJust $ places !! index -- safe fromJust
             pos   = posList !! index
         in (piece, pos)
-      singlePieceAndPosList  = map extract toPosNotContains
-      singlePosList          = map snd singlePieceAndPosList
+      singlePieceAndPosList     = map extract toPosNotContains
+      singlePosList             = map snd singlePieceAndPosList
   in notElem fromPos singlePosList
 
 getExtraCoordPred :: ExtraCoord -> Position -> Bool

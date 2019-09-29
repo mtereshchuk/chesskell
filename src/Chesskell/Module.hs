@@ -25,7 +25,7 @@ process = do
       (Right rawGames)     -> do
         let preprocessRes = preprocess rawGames
         case preprocessRes of
-          (Left preprocessErrorMsg) -> return . Left $ invalidMove ++ preprocessErrorMsg 
+          (Left preprocessErrorMsg) -> return . Left $ preprocessError ++ preprocessErrorMsg
           (Right games)             -> do
             staticPic     <- getStaticPic
             pieceToPicMap <- getPieceToPicMap
@@ -39,7 +39,7 @@ process = do
   where
     missingFilePath = "Missing file path"
     parseError      = "Error during parsing file: "
-    invalidMove     = "Error during : "
+    preprocessError = "Error during processing file: "
 
 run :: IO ()
 run = do
