@@ -11,8 +11,8 @@ module Chesskell.PGNParser
 
 import Data.Char                     (digitToInt)
 import Control.Applicative           ((<|>))
-import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, 
-                                     spaces, many, oneOf, noneOf, try, parseFromFile)
+import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, space, 
+                                     many, skipMany, oneOf, noneOf, try, parseFromFile)
 import Chesskell.Chess               (Color (..), PieceType (..))
 
 data RawTag = RawTag
@@ -51,11 +51,17 @@ newtype Y = Y Int deriving (Eq, Show)
 type RawExtraCoord = Maybe (Either X Y)
 type RawPosition = (X, Y)
 
+comment :: Parser String
+comment = char '{' *> many (noneOf "}") <* char '}'
+
+spacesAndComments :: Parser ()
+spacesAndComments = skipMany ((show <$> space) <|> comment)   
+
 rawTagParser :: Parser RawTag
 rawTagParser = do
   char '['
   tagName            <- many letter
-  spaces
+  spacesAndComments
   tagValueWithQuotes <- many $ noneOf "]"
   let tagValue       = init $ tail tagValueWithQuotes
   char ']'
@@ -175,8 +181,8 @@ rawMoveParser =
 
 rawMovesParser :: Parser [RawMove]
 rawMovesParser = many $
-  try (numberParser *> char '.' *> spaces *> rawMoveParser <* spaces)
-  <|> rawMoveParser <* spaces
+  try (numberParser *> char '.' *> spacesAndComments *> rawMoveParser <* spacesAndComments)
+  <|> rawMoveParser <* spacesAndComments
 
 rawWinnerParser :: Parser (Maybe Color)
 rawWinnerParser = 
@@ -186,7 +192,7 @@ rawWinnerParser =
 
 rawGameParser :: Parser RawGame
 rawGameParser = do
-  rawTags   <- many $ rawTagParser <* spaces
+  rawTags   <- many $ rawTagParser <* spacesAndComments
   rawMoves  <- rawMovesParser
   rawWinner <- rawWinnerParser
   return RawGame
@@ -196,7 +202,7 @@ rawGameParser = do
     }
 
 rawGamesParser :: Parser [RawGame]
-rawGamesParser = many $ rawGameParser <* spaces
+rawGamesParser = many $ rawGameParser <* spacesAndComments
 
 parsePGNFile :: FilePath -> IO (Either ParseError [RawGame])
 parsePGNFile = parseFromFile rawGamesParser
