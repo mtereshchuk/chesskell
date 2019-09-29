@@ -12,9 +12,6 @@ import qualified Graphics.Gloss.Interface.IO.Interact as UI
 import           Chesskell.CoreCommons                (Move (..), Game (..), AppState (..), gameNum, moveNum)
 import           Chesskell.Controller                 (updateAppState)
 
-controllerTest :: IO TestTree
-controllerTest = testSpec "Controller" specController
-
 specController :: Spec
 specController = do
   describe "Prev move works" $ do
@@ -89,3 +86,6 @@ specController = do
     firstGameAppState  = gameNum .~ 0 $ baseAppState
     middleGameAppState = gameNum .~ 1 $ baseAppState
     lastGameAppState   = gameNum .~ 2 $ baseAppState
+    
+controllerTest :: IO TestTree
+controllerTest = testSpec "Controller" specController

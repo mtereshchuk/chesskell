@@ -8,9 +8,6 @@ import Test.Tasty.Hspec    (Spec, testSpec, describe, it, shouldSatisfy, shouldB
 import Chesskell.Chess     (Color (..), PieceType (..))
 import Chesskell.PGNParser (RawTag (..), RawMove (..), RawGame (..), X (..), Y (..), parsePGNFile)
 
-pgnParserTest :: IO TestTree
-pgnParserTest = testSpec "PGNParser" pgnParserSpec
-
 pgnParserSpec :: Spec
 pgnParserSpec = do
   describe "Parse tags fails" $ do
@@ -186,3 +183,6 @@ pgnParserSpec = do
         , rawWinner = Just Black
         }
       ]
+      
+pgnParserTest :: IO TestTree
+pgnParserTest = testSpec "PGNParser" pgnParserSpec

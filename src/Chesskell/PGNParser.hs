@@ -18,7 +18,7 @@ import Chesskell.Chess               (Color (..), PieceType (..))
 data RawTag = RawTag
   { rawTagName  :: String
   , rawTagValue :: String
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Read)
 
 data RawMove
   = BaseRawMove
@@ -37,16 +37,16 @@ data RawMove
   | LongCastling
   { wasCheck     :: Bool
   , wasMate      :: Bool
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Read)
 
 data RawGame = RawGame
   { rawTags   :: [RawTag]
   , rawMoves  :: [RawMove]
   , rawWinner :: Maybe Color
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Read)
 
-newtype X = X Char deriving (Eq, Show)
-newtype Y = Y Int deriving (Eq, Show)
+newtype X = X Char deriving (Eq, Show, Read)
+newtype Y = Y Int deriving (Eq, Show, Read)
 
 type RawExtraCoord = Maybe (Either X Y)
 type RawPosition = (X, Y)

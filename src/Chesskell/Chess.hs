@@ -24,10 +24,10 @@ import           Data.Matrix (Matrix)
 import qualified Data.Matrix as Matrix
 
 data Color = White | Black 
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
 data PieceType = King | Queen | Bishop | Knight | Rook | Pawn
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
 type Piece = (Color, PieceType)
 type Position = (Int, Int)

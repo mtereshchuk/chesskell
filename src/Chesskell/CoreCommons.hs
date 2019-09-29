@@ -27,19 +27,19 @@ import           Chesskell.Chess (Color, Piece, Position, Arrangement)
 data Tag = Tag
   { tagName  :: String
   , tagValue :: String
-  } deriving Show
+  } deriving (Eq, Show, Read)
 
 data Move = Move
   { fromPos       :: Position
   , toPos         :: Position
   , pieceToPosMap :: Map Piece [Position]
-  } deriving Show
+  } deriving (Eq, Show, Read)
 
 data Game = Game
   { tags   :: [Tag]
   , moves  :: Vector Move
   , winner :: Maybe Color
-  } deriving Show
+  } deriving (Eq, Show, Read)
 
 data AppState = AppState
   { _staticPic     :: UI.Picture
