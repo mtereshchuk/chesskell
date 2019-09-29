@@ -12,7 +12,7 @@ module Chesskell.PGNParser
 import Data.Char                     (digitToInt)
 import Control.Applicative           ((<|>))
 import Text.ParserCombinators.Parsec (Parser, ParseError, char, string, letter, digit, space, 
-                                     many, skipMany, oneOf, noneOf, try, parseFromFile)
+                                     eof, many, skipMany, oneOf, noneOf, try, parseFromFile)
 import Chesskell.Chess               (Color (..), PieceType (..))
 
 data RawTag = RawTag
@@ -52,7 +52,9 @@ type RawExtraCoord = Maybe (Either X Y)
 type RawPosition = (X, Y)
 
 comment :: Parser String
-comment = char '{' *> many (noneOf "}") <* char '}'
+comment = 
+  char '{' *> many (noneOf "}") <* char '}'
+  <|> char ';' *> many (noneOf "\n") <* (() <$ char '\n' <|> eof) 
 
 spacesAndComments :: Parser ()
 spacesAndComments = skipMany ((show <$> space) <|> comment)   
