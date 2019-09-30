@@ -191,6 +191,7 @@ rawWinnerParser =
   try (Just <$> (White <$ string "1-0"))
   <|>  Just <$> (Black <$ string "0-1")
   <|>  Nothing <$ string "1/2-1/2"
+  <|>  Nothing <$ char '*'
 
 rawGameParser :: Parser RawGame
 rawGameParser = do
