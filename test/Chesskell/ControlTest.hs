@@ -63,9 +63,9 @@ specControl = do
        UI.Down
       (UI.Modifiers UI.Down UI.Up UI.Up)
       (0.0, 0.0)
-    baseMove           = Move
-      { fromPos       = (0, 0)
-      , toPos         = (0, 0)
+    baseMove          = Move
+      { fromPos       = Just (0, 0)
+      , toPos         = Just (0, 0)
       , pieceToPosMap = Map.empty
       }
     baseGame           = Game
