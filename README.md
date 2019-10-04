@@ -7,7 +7,7 @@ Visualizes chess games in [PGN](https://en.wikipedia.org/wiki/Portable_Game_Nota
 ## Installation
 
 ```sh
-git clone https://github.com/teremax/Chesskell.git
+git clone https://github.com/mtereshchuk/Chesskell.git
 cd Chesskell
 stack build
 stack exec Chesskell-exe <.pgn filepath>
