@@ -10,7 +10,7 @@ Visualizes chess games in [PGN](https://en.wikipedia.org/wiki/Portable_Game_Nota
 git clone https://github.com/mtereshchuk/Chesskell.git
 cd Chesskell
 stack build
-stack exec Chesskell-exe <.pgn filepath>
+stack exec Chesskell-exe <.pgn file path>
 ```
 
 Make sure you have [stack](https://docs.haskellstack.org) installed.
