@@ -154,12 +154,14 @@ getPieceToPicMap = do
 
 getInfoPic :: [Tag] -> UI.Picture
 getInfoPic tags =
-  let mergedTags  = map (\(Tag name value) -> name ++ ": " ++ value) tags
-      tagPics     = map UI.text mergedTags
-      picModify i = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale tagsScale tagsScale $ tagPics !! i)
-      tagList     = [picModify i | i <- [0..length tagPics - 1]]
+  let cutIfLong value = if length value <= maxLength then value else take (maxLength - 3) value ++ " ..."
+      mergedTags      = map (\(Tag name value) -> name ++ ": " ++ cutIfLong value) tags
+      tagPics         = map UI.text mergedTags
+      picModify i     = UI.translate 0.0 (betweenShift * fromIntegral i) (UI.scale tagsScale tagsScale $ tagPics !! i)
+      tagList         = [picModify i | i <- [0..length tagPics - 1]]
   in UI.translate xShift yShift $ UI.pictures tagList
   where
+    maxLength    = 25
     tagsScale    = viewScale / 685.0
     betweenShift = -viewScale / 2.2
     xShift       = viewScale * 2.65

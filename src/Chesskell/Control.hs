@@ -45,7 +45,7 @@ updateAppState
   appState =
     if appState^.gameNum == 0
     then appState
-    else moveNum .~ 0 $ (gameNum %~ (\num -> num - 1) $ appState)
+    else moveNum .~ 1 $ (gameNum %~ (\num -> num - 1) $ appState)
 
 updateAppState 
   (UI.EventKey 
@@ -58,6 +58,6 @@ updateAppState
     let gamesNum = Vector.length $ appState^.games
     in if appState^.gameNum == gamesNum - 1
        then appState
-       else moveNum .~ 0 $ gameNum %~ (+1) $ appState
+       else moveNum .~ 1 $ gameNum %~ (+1) $ appState
 
 updateAppState _ appState = appState
