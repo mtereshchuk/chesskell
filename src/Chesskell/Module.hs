@@ -34,7 +34,7 @@ process = do
               , _pieceToPicMap = pieceToPicMap
               , _games         = games
               , _gameNum       = 0
-              , _moveNum       = 0
+              , _moveNum       = 1
               }
   where
     missingFilePath = "Missing file path"

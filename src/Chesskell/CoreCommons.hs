@@ -30,8 +30,8 @@ data Tag = Tag
   } deriving (Eq, Show, Read)
 
 data Move = Move
-  { fromPos       :: Position
-  , toPos         :: Position
+  { fromPos       :: Maybe Position
+  , toPos         :: Maybe Position
   , pieceToPosMap :: Map Piece [Position]
   } deriving (Eq, Show, Read)
 

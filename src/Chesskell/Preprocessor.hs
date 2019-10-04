@@ -270,14 +270,14 @@ calcNextGameState castling color gameState =
     rookToPos   = (colorCoord, castRookJ side)
 
 calcMovesHelper :: Int -> [RawMove] -> [Move] -> GameState -> Either String (Vector Move)
-calcMovesHelper _ [] moves gameState = Right . Vector.fromList $ reverse moves
+calcMovesHelper _ [] moves gameState             = Right . Vector.fromList $ reverse moves
 calcMovesHelper i (rm : rms) moves prevGameState =
   let color                = if even i then White else Black
       calcNextGameStateRes = calcNextGameState rm color prevGameState
   in case calcNextGameStateRes of
     (Left errorMsg)                     -> Left $ errorMsg ++ " " ++ show (i + 1)
     (Right (fromPos, toPos, gameState)) ->
-      let move = Move fromPos toPos (gameState^.pieceToPosMap)
+      let move = Move (Just fromPos) (Just toPos) (gameState^.pieceToPosMap)
       in calcMovesHelper (i + 1) rms (move : moves) gameState
 
 initPieceToPosMap :: Map Piece [Position]
@@ -291,8 +291,9 @@ initPieceToPosMap =
       (Just piece) -> [(piece, [pos])]
 
 calcMoves :: [RawMove] -> Either String (Vector Move)
-calcMoves rawMoves = calcMovesHelper 0 rawMoves [] initialGameState
+calcMoves rawMoves = calcMovesHelper 0 rawMoves [firstMove] initialGameState
   where
+    firstMove        = Move Nothing Nothing initPieceToPosMap
     initialGameState = GameState
       { _arrangement   = initArrangement
       , _pieceToPosMap = initPieceToPosMap

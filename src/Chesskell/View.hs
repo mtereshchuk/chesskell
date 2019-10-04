@@ -9,6 +9,7 @@ module Chesskell.View
  ) where
 
 import           Data.List             (intercalate)
+import           Data.Maybe            (fromMaybe)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Vector           as Vector
@@ -183,7 +184,7 @@ getPiecesPic pieceToPicMap pieceToPosMap =
 
 getArrangementPic :: Map Piece UI.Picture -> Move -> UI.Picture
 getArrangementPic pieceToPicMap (Move fromPos toPos pieceToPosMap) =
-  let movePositionsPic = getMovePositionsPic fromPos toPos
+  let movePositionsPic = fromMaybe UI.blank $ getMovePositionsPic <$> fromPos <*> toPos
       piecesPic        = getPiecesPic pieceToPicMap pieceToPosMap
   in UI.pictures [movePositionsPic, piecesPic]
 
