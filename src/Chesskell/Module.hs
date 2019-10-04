@@ -3,13 +3,15 @@ module Chesskell.Module
   ) where
 
 import           System.Environment     (getArgs)
+import           System.IO              (IOMode (..), openFile, hSetEncoding, latin1, hGetContents)
 import           Data.Vector            (Vector)
 import qualified Graphics.Gloss         as UI
 import           Chesskell.Chess        (Piece)
 import           Chesskell.CoreCommons  (Game, AppState (..))
-import           Chesskell.PGNParser    (parsePGNFile)
+import           Chesskell.PGNParser    (parsePGNString)
 import           Chesskell.Preprocessor (preprocess)
-import           Chesskell.View         (chesskellDisplay, backgroundColor, getStaticPic, getPieceToPicMap, appStateToPic)
+import           Chesskell.View         (chesskellDisplay, backgroundColor, 
+                                        getStaticPic, getPieceToPicMap, appStateToPic)
 import           Chesskell.Control      (updateAppState)
 
 process :: IO (Either String AppState)
@@ -19,7 +21,10 @@ process = do
   then return $ Left missingFilePath
   else do
     let filePath = head args
-    parseRes     <- parsePGNFile filePath
+    file         <- openFile filePath ReadMode
+    hSetEncoding file latin1
+    contents     <- hGetContents file
+    let parseRes = parsePGNString filePath contents
     case parseRes of
       (Left parseErrorMsg) -> return . Left $ parseError ++ show parseErrorMsg
       (Right rawGames)     -> do
